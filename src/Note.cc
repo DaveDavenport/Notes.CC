@@ -10,13 +10,11 @@
 
 /**
  * Notes implementation code.
- * TODO: Move to own file.
  */
 Note::Note(Project *project, const char *filename):
     project(project), filename(filename)
 {
     std::string fpath = project->get_path()+"/"+filename;
-    std::cout << "Path: " << fpath << std::endl;
 
     FILE *fp = fopen(fpath.c_str(), "r");
     assert(fp != nullptr);
