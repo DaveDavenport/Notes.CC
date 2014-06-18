@@ -8,12 +8,11 @@
 #include <cstring>
 #include <list>
 
+#include <Project.h>
 /**
  * This project is written in C++, but tries to stick closer to C.
  * Classes, list, strings are ok.. Templates are already doubtful.
  */
-
-class Project;
 
 /**
  * Class representing a note.
@@ -36,87 +35,7 @@ class Note
         Note(Project *project, const char *filename);
 };
 
-/**
- * This class represents a Project.
- *
- * A project on it own can contain sub-projects and notes.
- */
-class Project
-{
-    private:
-            // Pointer to the parent Project.
-            Project *parent = nullptr;
-            // Name of this project.
-            std::string name;
-            // List of children projects (projects owns it and should free it)
-            std::list<Project*> child_projects;
-            // List of notes contained in this project. (project does not own note)
-            std::list<Note *> notes;
 
-    protected:
-        void set_parent(Project *parent)
-        {
-            assert(this->parent == nullptr);
-            assert(parent != nullptr);
-            this->parent = parent;
-        }
-
-        bool is_root()
-        {
-            return (this->parent == nullptr);
-        }
-
-    public:
-        Project(const char *name)
-        {
-            assert(name != nullptr);
-            this->name = name;
-        }
-
-        virtual ~Project()
-        {
-            for ( auto child : child_projects ) {
-                delete child;
-            }
-        }
-
-        std::string get_name()
-        {
-            if(parent != nullptr  && !parent->is_root()) {
-                return parent->get_name()+"."+name;
-            }
-            return name;
-        }
-
-        /**
-         * Add hierarchical structure.
-         */
-        void add_subproject(Project *child)
-        {
-            this->child_projects.push_back(child);
-            child->set_parent(this);
-        }
-
-        void add_note(Note *note)
-        {
-            this->notes.push_back(note);
-        }
-
-        void print()
-        {
-            std::cout << "Project: " << this->get_name() << std::endl;
-            std::cout << "         " << this->notes.size()<< " # notes." << std::endl;
-            for ( auto pr : child_projects )
-            {
-               pr->print();
-            }
-        }
-
-        virtual std::string get_path()
-        {
-            return parent->get_path()+"/"+name;
-        }
-};
 
 // The Main object, this is also the root node.
 class NotesCC : public Project
@@ -196,6 +115,7 @@ Note::Note(Project *project, const char *filename):
     std::cout << "Path: " << fpath << std::endl;
 
     FILE *fp = fopen(fpath.c_str(), "r");
+    assert(fp != nullptr);
     char buffer[1024];
     int start = 0;
     while(fgets(buffer, 1024, fp) != NULL && start < 2)
@@ -218,6 +138,7 @@ Note::Note(Project *project, const char *filename):
             }
         }
     }
+    fclose(fp);
 }
 
 int main ( int argc, char ** argv )
