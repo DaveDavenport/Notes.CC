@@ -9,31 +9,13 @@
 #include <list>
 
 #include <Project.h>
+#include <Note.h>
+
 /**
  * This project is written in C++, but tries to stick closer to C.
  * Classes, list, strings are ok.. Templates are already doubtful.
  */
 
-/**
- * Class representing a note.
- *
- * Todo how to get a consistent ID?
- * Sort list by ... then assign?
- */
-class Note
-{
-    private:
-        Project *project = nullptr;
-        std::string filename;
-
-        // Note properties
-        std::string title;
-        std::string last_edit;
-        unsigned int id;
-
-    public:
-        Note(Project *project, const char *filename);
-};
 
 
 
@@ -101,45 +83,8 @@ class NotesCC : public Project
                 closedir(dir);
             }
         }
-
 };
 
-/**
- * Notes implementation code.
- * TODO: Move to own file.
- */
-Note::Note(Project *project, const char *filename):
-    project(project), filename(filename)
-{
-    std::string fpath = project->get_path()+"/"+filename;
-    std::cout << "Path: " << fpath << std::endl;
-
-    FILE *fp = fopen(fpath.c_str(), "r");
-    assert(fp != nullptr);
-    char buffer[1024];
-    int start = 0;
-    while(fgets(buffer, 1024, fp) != NULL && start < 2)
-    {
-        if(buffer[0] == '-') {
-            start++;
-            continue;
-        }
-        char *sep = strstr(buffer, ":");
-        if(sep != NULL) {
-            *sep = '\0';
-            if(strcasecmp(buffer, "title") == 0) {
-                this->title = (sep+1);
-                // trim trailing \n
-                this->title.erase(
-                        this->title.end()-1,
-                        this->title.end());
-
-                std::cout << "title: " << this->title << std::endl;
-            }
-        }
-    }
-    fclose(fp);
-}
 
 int main ( int argc, char ** argv )
 {
