@@ -42,6 +42,8 @@ class Project
         void print();
 
         virtual std::string get_path();
+
+        void list_projects();
 };
 
 #endif

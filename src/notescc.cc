@@ -11,6 +11,26 @@
 #include <Project.h>
 #include <Note.h>
 
+// List of supported commands.
+typedef enum _MainCommands {
+    MC_ADD,
+    MC_EDIT,
+    MC_VIEW,
+    MC_LIST,
+    MC_DELETE,
+    MC_NUM
+
+} MainCommands;
+const char * commands[] =
+{
+    "add",
+    "edit",
+    "view",
+    "list",
+    "delete",
+    nullptr
+};
+
 /**
  * This project is written in C++, but tries to stick closer to C.
  * Classes, list, strings are ok.. Templates are already doubtful.
@@ -50,6 +70,43 @@ class NotesCC : public Project
 
         std::string get_path() { return db_path; }
 
+
+        int autocomplete(int argc, char **argv)
+        {
+            if(argc == 0) {
+                // List commands.
+                for ( int i = 0; commands[i] != nullptr; i++) {
+                    std::cout << commands[i]  << std::endl;
+                }
+                return 0;
+            }
+            this->list_projects();
+
+            return 1;
+        }
+
+        void run(int argc, char **argv)
+        {
+            int index = 1;
+            while(index < argc)
+            {
+                if(strcmp(argv[index], "--complete") == 0 ) {
+                    index++;
+                    index+= this->autocomplete(argc-index, &argv[index]);
+                }
+                else if (strcmp(argv[index], "view") == 0) {
+                    for( auto note : notes ) {
+                        note->print();
+                    }
+                    index++;
+                }
+                else {
+                    std::cerr << "Invalid argument: "<< argv[index] << std::endl;
+                    return;
+                }
+            }
+        }
+
     private:
         void Load(Project *node, std::string path)
         {
@@ -82,7 +139,11 @@ class NotesCC : public Project
                 }
                 closedir(dir);
             }
+            // TODO: Sort notes.
         }
+
+
+
 };
 
 
@@ -96,7 +157,8 @@ int main ( int argc, char ** argv )
     }
 
     NotesCC notes(path);
-    notes.print_projects();
+
+    notes.run(argc, argv);
 
     free(path);
     return EXIT_SUCCESS;

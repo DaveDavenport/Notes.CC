@@ -7,8 +7,10 @@ class Project;
 /**
  * Class representing a note.
  *
- * Todo how to get a consistent ID?
+ * TODO how to get a consistent ID?
  * Sort list by ... then assign?
+ *
+ * TODO: Calculate a CRC off the content of the note?
  */
 class Note
 {
@@ -19,10 +21,15 @@ class Note
         // Note properties
         std::string title;
         std::string last_edit;
-        unsigned int id;
+        unsigned int id = 0;
 
     public:
         Note(Project *project, const char *filename);
+
+        void print();
+
+        // TODO
+        unsigned int calculate_body_crc(){return 0;}
 };
 
 #endif

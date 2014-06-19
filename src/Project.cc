@@ -66,3 +66,14 @@ std::string Project::get_path()
 {
 	return parent->get_path()+"/"+name;
 }
+
+void Project::list_projects()
+{
+    if(!this->is_root()) {
+        std::cout << this->get_name() << std::endl;
+    }
+    for ( auto pr : child_projects )
+	{
+		pr->list_projects();
+	}
+}
