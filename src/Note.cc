@@ -33,6 +33,7 @@ Note::Note(Project *project, const char *filename):
         char *sep = strstr(buffer, ":");
         if(sep != NULL) {
             *sep = '\0';
+            sep++;
             if(strcasecmp(buffer, "title") == 0) {
                 this->title = (sep+1);
                 // trim trailing \n
@@ -43,7 +44,11 @@ Note::Note(Project *project, const char *filename):
             } else if (strcasecmp(buffer, "revision") == 0) {
 
             } else if (strcasecmp(buffer, "date") == 0 ) {
-
+                sep[strlen(sep)] = '\0';
+                char *retv = strptime(sep+1, "%a %b %d %T %z %Y", &(this->last_edit_time));
+                if(retv == nullptr) {
+                    fprintf(stderr, "Failed to parse date: |%s|\n", sep+2);
+                }
             }
         }
     }
@@ -52,6 +57,21 @@ Note::Note(Project *project, const char *filename):
 
 void Note::print()
 {
-    std::cout << this->id << " " << this->project->get_name() << this->title << std::endl;
+    std::cout << this->id << " " << this->project->get_name();
+    char buffer[1024];
+    strftime(buffer,1024,"%F", &(this->last_edit_time));
+    std::cout << " "<< buffer<< " ";
+    std::cout << this->title << std::endl;
 
+}
+
+void Note::set_id(unsigned int id)
+{
+    assert(this->id == 0);
+    this->id = id;
+}
+
+time_t Note::get_time_t()
+{
+    return mktime(&this->last_edit_time);
 }

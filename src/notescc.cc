@@ -36,24 +36,41 @@ const char * commands[] =
  * Classes, list, strings are ok.. Templates are already doubtful.
  */
 
-
+// Display helper class.
+// Show information nicely formatted and colored.
 
 
 // The Main object, this is also the root node.
 class NotesCC : public Project
 {
     private:
+        unsigned int last_note_id = 0;
         std::string db_path;
         // Root project.
         std::list<Note *> notes;
 
 
     public:
+        static bool notes_sort(Note *a, Note *b)
+        {
+            int time = (a->get_time_t() - b->get_time_t());
+            if(time == 0) {
+                return a->get_title().compare(b->get_title()) < 0;
+                // TODO sort on filename last resort, so we get a stable sort.
+            }
+            return time < 0;
+        }
        NotesCC(const char *path) : Project("")
         {
             db_path = path;
 
             this->Load(this,"");
+
+            this->notes.sort(notes_sort);
+            for ( auto note : this->notes )
+            {
+                note->set_id(++this->last_note_id);
+            }
         }
         ~NotesCC()
         {
@@ -94,7 +111,7 @@ class NotesCC : public Project
                     index++;
                     index+= this->autocomplete(argc-index, &argv[index]);
                 }
-                else if (strcmp(argv[index], "view") == 0) {
+                else if (strcmp(argv[index], "list") == 0) {
                     for( auto note : notes ) {
                         note->print();
                     }
@@ -139,7 +156,6 @@ class NotesCC : public Project
                 }
                 closedir(dir);
             }
-            // TODO: Sort notes.
         }
 
 
