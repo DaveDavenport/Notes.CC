@@ -12,14 +12,14 @@
 #include <Note.h>
 
 // List of supported commands.
-typedef enum _MainCommands {
+typedef enum _MainCommands
+{
     MC_ADD,
     MC_EDIT,
     MC_VIEW,
     MC_LIST,
     MC_DELETE,
     MC_NUM
-
 } MainCommands;
 const char * commands[] =
 {
@@ -39,127 +39,171 @@ const char * commands[] =
 // Display helper class.
 // Show information nicely formatted and colored.
 
+// Internal class to TableView.
+class TableColumn
+{
+private:
+    // Name of the column (For header)
+    std::string            column_name;
+    // List of fields.
+    std::vector<std::string> fields;
+
+    // Max width.
+    unsigned int width = 0;
+public:
+
+    std::string & operator[] (int index) { return fields[index]; }
+
+    TableColumn( std::string name )
+    {
+        this->set_header(name);
+    }
+
+
+    void set_header ( std::string name )
+    {
+        column_name = name;
+        if ( column_name.length () > this->width ) {
+            this->width = column_name.length ();
+        }
+    }
+
+    void add_entry ( std::string field )
+    {
+        this->fields.push_back(field);
+        if ( field.length () > this->width ) {
+            this->width = field.length ();
+        }
+    }
+};
+
+class TableView
+{
+private:
+    unsigned int num_columns = 0;
+
+
+public:
+
+private:
+};
+
 
 // The Main object, this is also the root node.
 class NotesCC : public Project
 {
-    private:
-        unsigned int last_note_id = 0;
-        std::string db_path;
-        // Root project.
-        std::list<Note *> notes;
+private:
+    unsigned int      last_note_id = 0;
+    std::string       db_path;
+// Root project.
+    std::list<Note *> notes;
 
 
-    public:
-        static bool notes_sort(Note *a, Note *b)
-        {
-            int time = (a->get_time_t() - b->get_time_t());
-            if(time == 0) {
-                return a->get_title().compare(b->get_title()) < 0;
-                // TODO sort on filename last resort, so we get a stable sort.
+public:
+    static bool notes_sort ( Note *a, Note *b )
+    {
+        int time = ( a->get_time_t () - b->get_time_t () );
+        if ( time == 0 ) {
+            return a->get_title ().compare ( b->get_title () ) < 0;
+            // TODO sort on filename last resort, so we get a stable sort.
+        }
+        return time < 0;
+    }
+    NotesCC( const char *path ) : Project ( "" )
+    {
+        db_path = path;
+
+        this->Load ( this, "" );
+
+        this->notes.sort ( notes_sort );
+        for ( auto note : this->notes ) {
+            note->set_id ( ++this->last_note_id );
+        }
+    }
+    ~NotesCC()
+    {
+        for ( auto note : notes ) {
+            delete note;
+        }
+    }
+
+    void print_projects ()
+    {
+        this->print ();
+    }
+
+    std::string get_path ()
+    {
+        return db_path;
+    }
+
+
+    int autocomplete ( int argc, char **argv )
+    {
+        if ( argc == 0 ) {
+            // List commands.
+            for ( int i = 0; commands[i] != nullptr; i++ ) {
+                std::cout << commands[i] << std::endl;
             }
-            return time < 0;
+            return 0;
         }
-       NotesCC(const char *path) : Project("")
-        {
-            db_path = path;
+        this->list_projects ();
 
-            this->Load(this,"");
+        return 1;
+    }
 
-            this->notes.sort(notes_sort);
-            for ( auto note : this->notes )
-            {
-                note->set_id(++this->last_note_id);
+    void run ( int argc, char **argv )
+    {
+        int index = 1;
+        while ( index < argc ) {
+            if ( strcmp ( argv[index], "--complete" ) == 0 ) {
+                index++;
+                index += this->autocomplete ( argc - index, &argv[index] );
             }
-        }
-        ~NotesCC()
-        {
-            for ( auto note : notes )
-            {
-                delete note;
-            }
-        }
-
-        void print_projects()
-        {
-            this->print();
-        }
-
-        std::string get_path() { return db_path; }
-
-
-        int autocomplete(int argc, char **argv)
-        {
-            if(argc == 0) {
-                // List commands.
-                for ( int i = 0; commands[i] != nullptr; i++) {
-                    std::cout << commands[i]  << std::endl;
+            else if ( strcmp ( argv[index], "list" ) == 0 ) {
+                for ( auto note : notes ) {
+                    note->print ();
                 }
-                return 0;
+                index++;
             }
-            this->list_projects();
-
-            return 1;
-        }
-
-        void run(int argc, char **argv)
-        {
-            int index = 1;
-            while(index < argc)
-            {
-                if(strcmp(argv[index], "--complete") == 0 ) {
-                    index++;
-                    index+= this->autocomplete(argc-index, &argv[index]);
-                }
-                else if (strcmp(argv[index], "list") == 0) {
-                    for( auto note : notes ) {
-                        note->print();
-                    }
-                    index++;
-                }
-                else {
-                    std::cerr << "Invalid argument: "<< argv[index] << std::endl;
-                    return;
-                }
+            else {
+                std::cerr << "Invalid argument: " << argv[index] << std::endl;
+                return;
             }
         }
+    }
 
-    private:
-        void Load(Project *node, std::string path)
-        {
-            DIR *dir = opendir((db_path+path).c_str());
-            if(dir != NULL)
-            {
-                struct dirent *dirp;
-                while( ( dirp = readdir(dir)) != NULL )
-                {
-                    // Skip hidden files (for now)
-                    if(dirp->d_name[0] == '.') continue;
-                    // Project
-                    if(dirp->d_type == DT_DIR)
-                    {
-                        Project *p = new Project(dirp->d_name);
-                        node->add_subproject(p);
-
-                        // Recurse down in the structure.
-                        std::string np = path+"/"+dirp->d_name;
-                        Load(p,np);
-                    }
-                    // Note
-                    else if (dirp->d_type == DT_REG)
-                    {
-                        Note *note = new Note(node, dirp->d_name);
-                        // Add to the flat list in the main.
-                        this->notes.push_back(note);
-                        node->add_note(note);
-                    }
+private:
+    void Load ( Project *node, std::string path )
+    {
+        DIR *dir = opendir ( ( db_path + path ).c_str () );
+        if ( dir != NULL ) {
+            struct dirent *dirp;
+            while ( ( dirp = readdir ( dir ) ) != NULL ) {
+                // Skip hidden files (for now)
+                if ( dirp->d_name[0] == '.' ) {
+                    continue;
                 }
-                closedir(dir);
+                // Project
+                if ( dirp->d_type == DT_DIR ) {
+                    Project *p = new Project ( dirp->d_name );
+                    node->add_subproject ( p );
+
+                    // Recurse down in the structure.
+                    std::string np = path + "/" + dirp->d_name;
+                    Load ( p, np );
+                }
+                // Note
+                else if ( dirp->d_type == DT_REG ) {
+                    Note *note = new Note ( node, dirp->d_name );
+                    // Add to the flat list in the main.
+                    this->notes.push_back ( note );
+                    node->add_note ( note );
+                }
             }
+            closedir ( dir );
         }
-
-
-
+    }
 };
 
 
@@ -167,15 +211,15 @@ int main ( int argc, char ** argv )
 {
     char *path = NULL;
 
-    if(asprintf(&path, "%s/Notes2/", getenv("HOME")) == -1) {
-        fprintf(stderr, "Failed to get path\n");
+    if ( asprintf ( &path, "%s/Notes2/", getenv ( "HOME" ) ) == -1 ) {
+        fprintf ( stderr, "Failed to get path\n" );
         return EXIT_FAILURE;
     }
 
-    NotesCC notes(path);
+    NotesCC notes ( path );
 
-    notes.run(argc, argv);
+    notes.run ( argc, argv );
 
-    free(path);
+    free ( path );
     return EXIT_SUCCESS;
 }

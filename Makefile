@@ -15,3 +15,6 @@ $(OUT): $(OBJECTS)
 
 clean:
 	rm -f $(OBJECTS) $(OUT)
+
+indent:
+	uncrustify --replace -c data/uncrustify.cfg $(SOURCES) $(HEADERS)

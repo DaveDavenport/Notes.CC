@@ -1,6 +1,6 @@
 #ifndef __NOTE_H__
 #define __NOTE_H__
-#define _XOPEN_SOURCE 700
+#define _XOPEN_SOURCE    700
 #include <time.h>
 
 // Forward declaration.
@@ -16,27 +16,33 @@ class Project;
  */
 class Note
 {
-    private:
-        Project *project = nullptr;
-        std::string filename;
+private:
+    Project     *project = nullptr;
+    std::string filename;
 
-        // Note properties
-        std::string title;
-        std::string last_edit;
-        struct tm last_edit_time;
-        unsigned int id = 0;
+// Note properties
+    std::string  title;
+    std::string  last_edit;
+    struct tm    last_edit_time;
+    unsigned int id = 0;
 
-    public:
-        Note(Project *project, const char *filename);
+public:
+    Note( Project *project, const char *filename );
 
-        void print();
+    void print ();
 
-        // TODO
-        unsigned int calculate_body_crc(){return 0;}
+// TODO
+    unsigned int calculate_body_crc ()
+    {
+        return 0;
+    }
 
-        void set_id(unsigned int id);
-        time_t get_time_t();
-        std::string get_title() const { return this->title;}
+    void set_id ( unsigned int id );
+    time_t get_time_t ();
+    std::string get_title () const
+    {
+        return this->title;
+    }
 };
 
 #endif

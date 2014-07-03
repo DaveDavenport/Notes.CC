@@ -11,39 +11,39 @@ class Note;
  */
 class Project
 {
-    private:
-            // Pointer to the parent Project.
-            Project *parent = nullptr;
-            // Name of this project.
-            std::string name;
-            // List of children projects (projects owns it and should free it)
-            std::list<Project*> child_projects;
-            // List of notes contained in this project. (project does not own note)
-            std::list<Note *> notes;
+private:
+// Pointer to the parent Project.
+    Project             *parent = nullptr;
+// Name of this project.
+    std::string         name;
+// List of children projects (projects owns it and should free it)
+    std::list<Project*> child_projects;
+// List of notes contained in this project. (project does not own note)
+    std::list<Note *>   notes;
 
-    protected:
-        void set_parent(Project *parent);
-        bool is_root();
+protected:
+    void set_parent ( Project *parent );
+    bool is_root ();
 
-    public:
-        Project(const char *name);
+public:
+    Project( const char *name );
 
-        virtual ~Project();
+    virtual ~Project();
 
-        std::string get_name();
+    std::string get_name ();
 
-        /**
-         * Add hierarchical structure.
-         */
-        void add_subproject(Project *child);
+/**
+ * Add hierarchical structure.
+ */
+    void add_subproject ( Project *child );
 
-        void add_note(Note *note);
+    void add_note ( Note *note );
 
-        void print();
+    void print ();
 
-        virtual std::string get_path();
+    virtual std::string get_path ();
 
-        void list_projects();
+    void list_projects ();
 };
 
 #endif
