@@ -96,12 +96,15 @@ private:
 
 
 public:
+    // increment the number of rows.
     void operator++(int ) { this->num_rows+=1; }
+
+    // Add a column
     void add_column(std::string name)
     {
         unsigned int index = columns.size();
         columns.resize(index+1);
-        columns[index].set_header(name);// = new TableColumn(name);
+        columns[index].set_header(name);
     }
 
     TableColumn & operator[] (int index) { return columns[index]; }
@@ -111,6 +114,7 @@ public:
 
     void print()
     {
+        // Print headers.
         for ( auto col : columns ) 
         {
             printf("%s%-*s%s ",
@@ -119,7 +123,7 @@ public:
                     color_reset);
         }
         printf("\n");
-
+        // For each row, print the value.
         for ( unsigned int row =0; row < this->num_rows; row++) {
             for ( auto col : columns ) 
             {
@@ -207,6 +211,7 @@ public:
             else if ( strcmp ( argv[index], "list" ) == 0 ) {
                 TableView view;
 
+                // Add the columns
                 view.add_column("ID");
                 view.add_column("Project");
                 view.add_column("Mod. date");
