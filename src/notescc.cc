@@ -52,17 +52,25 @@ private:
     unsigned int width = 0;
 public:
 
-    std::string & operator[] (int index) { return fields[index]; }
+    std::string & operator[] (unsigned int index) { 
+        if(index >= fields.size()) fields.resize(index+1);
+        return fields[index];
+    }
 
-    TableColumn( std::string name )
+    void set_value(unsigned int row, std::string value) {
+        if(row >= fields.size()) fields.resize(row+1);
+        fields[row] = value;
+        if(value.size() > width) width = value.size();
+    }
+
+    TableColumn()
     {
-        this->set_header(name);
     }
 
 
-    void set_header ( std::string name )
+    void set_header ( const std::string name )
     {
-        column_name = name;
+        this->column_name = name;
         if ( column_name.length () > this->width ) {
             this->width = column_name.length ();
         }
@@ -75,16 +83,52 @@ public:
             this->width = field.length ();
         }
     }
+
+    unsigned int get_width() { return this->width; }
+    const std::string &get_header() { return this->column_name; }
 };
 
 class TableView
 {
 private:
-    unsigned int num_columns = 0;
+    std::vector<TableColumn > columns;
+    unsigned int num_rows = 0;
 
 
 public:
+    void operator++(int ) { this->num_rows+=1; }
+    void add_column(std::string name)
+    {
+        unsigned int index = columns.size();
+        columns.resize(index+1);
+        columns[index].set_header(name);// = new TableColumn(name);
+    }
 
+    TableColumn & operator[] (int index) { return columns[index]; }
+
+    const char* color_reset = "\e[0m";
+    const char* color_bold = "\e[1m";
+
+    void print()
+    {
+        for ( auto col : columns ) 
+        {
+            printf("%s%-*s%s ",
+                    color_bold,col.get_width(),
+                    col.get_header().c_str(),
+                    color_reset);
+        }
+        printf("\n");
+
+        for ( unsigned int row =0; row < this->num_rows; row++) {
+            for ( auto col : columns ) 
+            {
+                printf("%-*s ", col.get_width(), col[row].c_str());
+            }
+            printf("\n");
+        }
+
+    }
 private:
 };
 
@@ -161,9 +205,21 @@ public:
                 index += this->autocomplete ( argc - index, &argv[index] );
             }
             else if ( strcmp ( argv[index], "list" ) == 0 ) {
+                TableView view;
+
+                view.add_column("ID");
+                view.add_column("Project");
+                view.add_column("Mod. date");
+                view.add_column("Description");
                 for ( auto note : notes ) {
-                    note->print ();
+                    unsigned int row_index = note->get_id()-1;
+                    view[0].set_value(row_index, std::to_string(note->get_id()));
+                    view[1].set_value(row_index, note->get_project());
+                    view[2].set_value(row_index, note->get_modtime());
+                    view[3].set_value(row_index, note->get_title());
+                    view++;
                 }
+                view.print();
                 index++;
             }
             else {

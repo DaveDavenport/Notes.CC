@@ -57,6 +57,12 @@ Note::Note( Project *project, const char *filename ) :
     fclose ( fp );
 }
 
+std::string Note::get_modtime()
+{
+    char buffer[1024];
+    strftime ( buffer, 1024, "%F", &( this->last_edit_time ) );
+    return std::string(buffer);
+}
 void Note::print ()
 {
     std::cout << this->id << " " << this->project->get_name ();

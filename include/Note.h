@@ -43,6 +43,19 @@ public:
     {
         return this->title;
     }
+
+
+    unsigned int get_id() const
+    {
+        return this->id;
+    }
+
+    std::string get_project()
+    {
+        return this->project->get_name();
+    }
+
+    std::string get_modtime();
 };
 
 #endif
