@@ -1,3 +1,9 @@
+#include <unistd.h>
+#include <errno.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
 #include <iostream>
 #include <algorithm>
 #include <assert.h>
@@ -10,6 +16,9 @@
 
 #include <rhash.h>
 
+extern "C" {
+#include <mkdio.h>
+}
 /**
  * Notes implementation code.
  */
@@ -22,7 +31,7 @@ Note::Note( Project *project, const char *filename ) :
     assert ( fp != nullptr );
     char        buffer[1024];
     int         start = 0;
-    while ( fgets ( buffer, 1024, fp ) != NULL && start < 2 ) {
+    while ( fgets ( buffer, 1024, fp ) != nullptr && start < 2 ) {
         // Only parse section between '-'.
         if ( buffer[0] == '-' ) {
             start++;
@@ -34,7 +43,7 @@ Note::Note( Project *project, const char *filename ) :
 
         // <key>: value format
         char *sep = strstr ( buffer, ":" );
-        if ( sep != NULL ) {
+        if ( sep != nullptr ) {
             *sep = '\0';
             sep++;
             if ( strcasecmp ( buffer, "title" ) == 0 ) {
@@ -98,4 +107,84 @@ void Note::set_id ( unsigned int id )
 time_t Note::get_time_t ()
 {
     return mktime ( &this->last_edit_time );
+}
+
+/**
+ * TODO: Cleanup
+ * Make a separate launcher that can both be blocking and non-blocking.
+ */
+void catch_exit ( __attribute__( ( unused ) ) int sig )
+{
+    while ( 0 < waitpid ( -1, NULL, WNOHANG ) ) {
+        ;
+    }
+}
+static pid_t exec_cmd ( const char *cmd )
+{
+    if ( !cmd || !cmd[0] ) {
+        return -1;
+    }
+
+    signal ( SIGCHLD, catch_exit );
+    pid_t pid = fork ();
+
+    if ( !pid ) {
+        setsid ();
+        execlp ( "/bin/sh", "sh", "-c", cmd, NULL );
+        exit ( EXIT_FAILURE );
+    }
+    return pid;
+}
+
+void Note::view ()
+{
+    std::string fpath = project->get_path () + "/" + filename;
+    char        *path;
+    if ( asprintf ( &path, "/tmp/notecc-%u.xhtml", this->hash ) <= 0 ) {
+        fprintf ( stderr, "Failed to create note tmp path\n" );
+        return;
+    }
+
+    FILE *fp = fopen ( fpath.c_str (), "r" );
+    if ( fp == nullptr ) {
+        fprintf ( stderr, "Failed to open note: %s\n", fpath.c_str () );
+        free ( path );
+        return;
+    }
+
+    // Skip header.
+    char buffer[1024];
+    int  start = 0;
+    while ( fgets ( buffer, 1024, fp ) != nullptr && start < 2 ) {
+        if ( buffer[0] == '-' ) {
+            start++;
+        }
+    }
+
+    // Parse remainder of document.
+    MMIOT *doc = mkd_in ( fp, 0 );
+    fclose ( fp );
+
+    fp = fopen ( path, "w" );
+    if ( fp == nullptr ) {
+        fprintf ( stderr, "Failed to open tmp file: %s %s\n", path, strerror ( errno ) );
+        free ( path );
+        mkd_cleanup ( doc );
+        return;
+    }
+    // Generate XHTML page.
+    mkd_xhtmlpage ( doc, 0, fp );
+    fclose ( fp );
+    mkd_cleanup ( doc );
+
+    // Fire up browser.
+    char *command;
+    if ( asprintf ( &command, "xdg-open %s", path ) > 0 ) {
+        pid_t pid = exec_cmd ( command );
+        waitpid ( pid, NULL, WNOHANG );
+        printf ( "done\n" );
+        free ( command );
+    }
+
+    free ( path );
 }

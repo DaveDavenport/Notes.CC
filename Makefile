@@ -11,7 +11,7 @@ all: $(OUT)
 $(OBJECTS): $(HEADERS)
 
 $(OUT): $(OBJECTS)
-	$(CXX) -o $@ $^ -lrhash
+	$(CXX) -o $@ $^ -lrhash -lmarkdown
 
 clean:
 	rm -f $(OBJECTS) $(OUT)

@@ -55,6 +55,11 @@ public:
     }
 
     std::string get_modtime ();
+
+    /**
+     * Compile the note and view it.
+     */
+    void view ();
 };
 
 #endif

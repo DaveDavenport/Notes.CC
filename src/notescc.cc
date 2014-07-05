@@ -66,10 +66,10 @@ const char * commands[] =
 class NotesCC : public Project
 {
 private:
-    unsigned int      last_note_id = 0;
-    std::string       db_path;
+    unsigned int        last_note_id = 0;
+    std::string         db_path;
 // Root project.
-    std::list<Note *> notes;
+    std::vector<Note *> notes;
 
 
 public:
@@ -88,7 +88,8 @@ public:
 
         this->Load ( this, "" );
 
-        this->notes.sort ( notes_sort );
+        std::sort ( this->notes.begin (), this->notes.end (), notes_sort );
+
         for ( auto note : this->notes ) {
             note->set_id ( ++this->last_note_id );
         }
@@ -132,6 +133,23 @@ public:
             if ( strcmp ( argv[index], "--complete" ) == 0 ) {
                 index++;
                 index += this->autocomplete ( argc - index, &argv[index] );
+            }
+            else if ( strcmp ( argv[index], "view" ) == 0 ) {
+                if ( argc <= ( index + 1 ) ) {
+                    fprintf ( stderr, "view requires one argument\n" );
+                    return;
+                }
+                int nindex = std::stoi ( argv[index + 1] );
+                if ( nindex < 1 || nindex > (int) notes.size () ) {
+                    fprintf ( stderr, "Invalid note id: %d\n", nindex );
+                    return;
+                }
+                Note *note = notes[nindex - 1];
+
+                note->view ();
+
+
+                index += 2;
             }
             else if ( strcmp ( argv[index], "list" ) == 0 ) {
                 TableView view;
