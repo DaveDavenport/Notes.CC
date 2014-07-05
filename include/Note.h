@@ -22,21 +22,20 @@ private:
 
 // Note properties
     std::string  title;
-    std::string  last_edit;
-    struct tm    last_edit_time;
-    unsigned int id = 0;
+    struct tm    last_edit_time = { 0, };
+    unsigned int id             = 0;
+
+    uint32_t     hash = 0;
 
 public:
     Note( Project *project, const char *filename );
 
     void print ();
 
-// TODO
-    unsigned int calculate_body_crc ()
+    uint32_t get_body_crc ()
     {
-        return 0;
+        return this->hash;
     }
-
     void set_id ( unsigned int id );
     time_t get_time_t ();
     std::string get_title () const
@@ -45,17 +44,17 @@ public:
     }
 
 
-    unsigned int get_id() const
+    unsigned int get_id () const
     {
         return this->id;
     }
 
-    std::string get_project()
+    std::string get_project ()
     {
-        return this->project->get_name();
+        return this->project->get_name ();
     }
 
-    std::string get_modtime();
+    std::string get_modtime ();
 };
 
 #endif

@@ -10,6 +10,31 @@
 
 #include <Project.h>
 #include <Note.h>
+#include <Colors.h>
+#include <TableView.h>
+
+#include <rhash.h>
+
+struct timespec _tick_start;
+struct timespec _tick_stop;
+
+#define INIT_TIC_TAC()    { clock_gettime ( CLOCK_REALTIME, &_tick_start ); }
+
+#define TIC( a )          {                                                    \
+        clock_gettime ( CLOCK_REALTIME, &_tick_stop );                         \
+        timespec diff;                                                         \
+        diff.tv_sec  = _tick_stop.tv_sec - _tick_start.tv_sec;                 \
+        diff.tv_nsec = _tick_stop.tv_nsec - _tick_start.tv_nsec;               \
+        if ( diff.tv_nsec < 0 ) {                                              \
+            diff.tv_sec  -= 1;                                                 \
+            diff.tv_nsec += 1e9;                                               \
+        }                                                                      \
+        printf ( "%s: %lu s, %.2f ms\n", a, diff.tv_sec, diff.tv_nsec / 1e6 ); \
+}
+
+
+
+
 
 // List of supported commands.
 typedef enum _MainCommands
@@ -35,106 +60,6 @@ const char * commands[] =
  * This project is written in C++, but tries to stick closer to C.
  * Classes, list, strings are ok.. Templates are already doubtful.
  */
-
-// Display helper class.
-// Show information nicely formatted and colored.
-
-// Internal class to TableView.
-class TableColumn
-{
-private:
-    // Name of the column (For header)
-    std::string            column_name;
-    // List of fields.
-    std::vector<std::string> fields;
-
-    // Max width.
-    unsigned int width = 0;
-public:
-
-    std::string & operator[] (unsigned int index) { 
-        if(index >= fields.size()) fields.resize(index+1);
-        return fields[index];
-    }
-
-    void set_value(unsigned int row, std::string value) {
-        if(row >= fields.size()) fields.resize(row+1);
-        fields[row] = value;
-        if(value.size() > width) width = value.size();
-    }
-
-    TableColumn()
-    {
-    }
-
-
-    void set_header ( const std::string name )
-    {
-        this->column_name = name;
-        if ( column_name.length () > this->width ) {
-            this->width = column_name.length ();
-        }
-    }
-
-    void add_entry ( std::string field )
-    {
-        this->fields.push_back(field);
-        if ( field.length () > this->width ) {
-            this->width = field.length ();
-        }
-    }
-
-    unsigned int get_width() { return this->width; }
-    const std::string &get_header() { return this->column_name; }
-};
-
-class TableView
-{
-private:
-    std::vector<TableColumn > columns;
-    unsigned int num_rows = 0;
-
-
-public:
-    // increment the number of rows.
-    void operator++(int ) { this->num_rows+=1; }
-
-    // Add a column
-    void add_column(std::string name)
-    {
-        unsigned int index = columns.size();
-        columns.resize(index+1);
-        columns[index].set_header(name);
-    }
-
-    TableColumn & operator[] (int index) { return columns[index]; }
-
-    const char* color_reset = "\e[0m";
-    const char* color_bold = "\e[1m";
-
-    void print()
-    {
-        // Print headers.
-        for ( auto col : columns ) 
-        {
-            printf("%s%-*s%s ",
-                    color_bold,col.get_width(),
-                    col.get_header().c_str(),
-                    color_reset);
-        }
-        printf("\n");
-        // For each row, print the value.
-        for ( unsigned int row =0; row < this->num_rows; row++) {
-            for ( auto col : columns ) 
-            {
-                printf("%-*s ", col.get_width(), col[row].c_str());
-            }
-            printf("\n");
-        }
-
-    }
-private:
-};
 
 
 // The Main object, this is also the root node.
@@ -212,19 +137,21 @@ public:
                 TableView view;
 
                 // Add the columns
-                view.add_column("ID");
-                view.add_column("Project");
-                view.add_column("Mod. date");
-                view.add_column("Description");
+                view.add_column ( "ID", color_bold );
+                view.add_column ( "Project", color_white_bold );
+                view.add_column ( "Last edited", color_blue );
+                view.add_column ( "CRC", color_red );
+                view.add_column ( "Description" );
                 for ( auto note : notes ) {
-                    unsigned int row_index = note->get_id()-1;
-                    view[0].set_value(row_index, std::to_string(note->get_id()));
-                    view[1].set_value(row_index, note->get_project());
-                    view[2].set_value(row_index, note->get_modtime());
-                    view[3].set_value(row_index, note->get_title());
+                    unsigned int row_index = note->get_id () - 1;
+                    view[0].set_value ( row_index, std::to_string ( note->get_id () ) );
+                    view[1].set_value ( row_index, note->get_project () );
+                    view[2].set_value ( row_index, note->get_modtime () );
+                    view[3].set_value ( row_index, std::to_string ( note->get_body_crc () ) );
+                    view[4].set_value ( row_index, note->get_title () );
                     view++;
                 }
-                view.print();
+                view.print ();
                 index++;
             }
             else {
@@ -272,15 +199,18 @@ int main ( int argc, char ** argv )
 {
     char *path = NULL;
 
+    rhash_library_init ();
+
     if ( asprintf ( &path, "%s/Notes2/", getenv ( "HOME" ) ) == -1 ) {
         fprintf ( stderr, "Failed to get path\n" );
         return EXIT_FAILURE;
     }
-
+    INIT_TIC_TAC ()
     NotesCC notes ( path );
 
     notes.run ( argc, argv );
 
+    TIC ( "finish" );
     free ( path );
     return EXIT_SUCCESS;
 }

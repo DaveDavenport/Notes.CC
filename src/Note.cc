@@ -8,6 +8,8 @@
 #include <Project.h>
 #include <Note.h>
 
+#include <rhash.h>
+
 /**
  * Notes implementation code.
  */
@@ -54,14 +56,29 @@ Note::Note( Project *project, const char *filename ) :
             }
         }
     }
+
+    // Calculate HASH of note.
+    // This is used to see if the note has changed.
+    // TODO: This is not needed at startup, if it gets to slow, move it.
+#ifndef NO_HASH
+    rhash  ctx = rhash_init ( RHASH_CRC32 );
+    size_t rsize;
+    while ( ( rsize = fread ( buffer, 1, 1024, fp ) ) > 0 ) {
+        rhash_update ( ctx, buffer, rsize );
+    }
+    rhash_final ( ctx, nullptr );
+
+    rhash_print ( (char *) &( this->hash ), ctx, 0, RHPR_RAW );
+    rhash_free ( ctx );
+#endif
     fclose ( fp );
 }
 
-std::string Note::get_modtime()
+std::string Note::get_modtime ()
 {
     char buffer[1024];
     strftime ( buffer, 1024, "%F", &( this->last_edit_time ) );
-    return std::string(buffer);
+    return std::string ( buffer );
 }
 void Note::print ()
 {
