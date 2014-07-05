@@ -198,19 +198,21 @@ private:
 int main ( int argc, char ** argv )
 {
     char *path = NULL;
+    INIT_TIC_TAC ()
 
     rhash_library_init ();
+
+    TIC ( "RHash" );
 
     if ( asprintf ( &path, "%s/Notes2/", getenv ( "HOME" ) ) == -1 ) {
         fprintf ( stderr, "Failed to get path\n" );
         return EXIT_FAILURE;
     }
-    INIT_TIC_TAC ()
     NotesCC notes ( path );
 
     notes.run ( argc, argv );
 
-    TIC ( "finish" );
     free ( path );
+    TIC ( "finish" );
     return EXIT_SUCCESS;
 }
