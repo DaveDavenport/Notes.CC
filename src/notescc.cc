@@ -7,6 +7,7 @@
 #include <string>
 #include <cstring>
 #include <list>
+#include <regex>
 
 #include <Project.h>
 #include <Note.h>
@@ -316,6 +317,70 @@ public:
         }
     }
 
+    /**
+     * Resolve a normal full project name into the Project pointer.
+     * If (sub) projects do not exists, they are created and added.
+     *
+     * Before adding a note, validate if it exists by calling
+     * Project::check_and_create_path().
+     */
+    Project * get_or_create_project_from_name ( std::string pr )
+    {
+        Project *p = this;
+
+        // Validate the string.
+        if ( !std::regex_match ( pr, std::regex ( "([a-zA-Z0-9]+.)*[a-zA-Z0-9]+" ) ) ) {
+            fprintf ( stderr, "%s is an invalid Project name.\n", pr.c_str () );
+            return nullptr;
+        }
+
+        // Split the project and find/create the Right Project node.
+        std::smatch m;
+        std::regex  e ( "[a-zA-Z0-9]+" );
+
+        // Match name, find project, then skip to next name.
+        while ( std::regex_search ( pr, m, e ) ) {
+            if ( m.begin () != m.end () ) {
+                std::string name = *( m.begin () );
+                Project     *pc  = p->find_child ( name );
+                if ( pc == nullptr ) {
+                    // Create!
+                    pc = new Project ( name.c_str () );
+                    p->add_subproject ( pc );
+                }
+                p = pc;
+            }
+            pr = m.suffix ().str ();
+        }
+        return p;
+    }
+
+    int command_add ( int argc, char **argv )
+    {
+        int     retv = 0;
+        Project *p   = this;
+
+        if ( argc > 0 ) {
+            p = this->get_or_create_project_from_name ( argv[0] );
+            retv++;
+        }
+
+        // Check if we have project successful.
+        if ( p == nullptr ) {
+            fprintf ( stderr, "Failed to find or create the project.\n" );
+            return retv;
+        }
+
+        Note *n = new Note ( p );
+
+        if ( n != nullptr ) {
+            this->notes.push_back ( n );
+            n->edit ();
+        }
+
+        return retv;
+    }
+
 
     /**
      * Implement the autocomplete command.
@@ -362,6 +427,10 @@ public:
                 index++;
                 index += this->command_edit ( argc - index, &argv[index] );
             }
+            else if ( strcmp ( argv[index], "add" ) == 0 ) {
+                index++;
+                index += this->command_add ( argc - index, &argv[index] );
+            }
             else if ( strcmp ( argv[index], "projects" ) == 0 ) {
                 index++;
                 index += this->command_projects ( argc - index, &argv[index] );
@@ -398,7 +467,6 @@ private:
                     Note *note = new Note ( node, dirp->d_name );
                     // Add to the flat list in the main.
                     this->notes.push_back ( note );
-                    node->add_note ( note );
                 }
             }
             closedir ( dir );

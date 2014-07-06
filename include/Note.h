@@ -30,6 +30,7 @@ private:
 
 public:
     Note( Project *project, const char *filename );
+    Note ( Project *p );
 
     void print ();
 

@@ -3,6 +3,8 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+
 
 #include <iostream>
 #include <algorithm>
@@ -79,6 +81,57 @@ Note::Note( Project *project, const char *filename ) :
     this->hash = this->calculate_crc ( fp );
 #endif
     fclose ( fp );
+
+    project->add_note ( this );
+}
+
+// TODO Move these to helper file.
+static bool file_not_exists ( const std::string &filename )
+{
+    struct stat status;
+    int         retv = stat ( filename.c_str (), &status );
+    if ( retv != 0 ) {
+        if ( errno == ENOENT ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+Note::Note ( Project *p ) :
+    project ( p )
+{
+    if ( !p->check_and_create_path ()  ) {
+        fprintf ( stderr, "Failed to create Project path.\n" );
+        abort ();
+    }
+
+    // Create a new unique filename
+    // Not perfect, will have todo.
+    std::string fn    = "note-" + std::to_string ( time ( NULL ) ) + ".note";
+    int         index = 0;
+    while ( !file_not_exists ( fn ) ) {
+        fn = "note-" + std::to_string ( time ( NULL ) ) + "-" + std::to_string ( index ) + ".note";
+        index++;
+    }
+
+    this->filename = fn;
+
+    // Update information and write out empty file.
+    time_t cur_time = time ( NULL );
+    localtime_r ( &cur_time, &( this->last_edit_time ) );
+
+    std::string fpath      = project->get_path () + "/" + filename;
+    FILE        *orig_file = fopen ( fpath.c_str (), "w" );
+    if ( orig_file == nullptr ) {
+        fprintf ( stderr, "Failed to open note for writing: %s\n", strerror ( errno ) );
+        abort ();
+    }
+    this->write_header ( orig_file );
+    fprintf ( orig_file, "New Note." );
+    fclose ( orig_file );
+
+    project->add_note ( this );
 }
 
 void Note::read_title (  FILE *fp )

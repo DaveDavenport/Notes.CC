@@ -31,6 +31,7 @@ public:
     virtual ~Project();
 
     std::string get_name ();
+    const std::string & get_project_name () const;
 
 /**
  * Add hierarchical structure.
@@ -62,6 +63,23 @@ public:
     {
         return this->child_projects;
     }
+
+    Project * find_child ( std::string &name ) const
+    {
+        for ( auto p : child_projects ) {
+            if ( p->get_project_name () == name ) {
+                return p;
+            }
+        }
+        return nullptr;
+    }
+
+    /**
+     * Recurse through the projects and creates the path in the notes repository.
+     *
+     * @returns false when it failed to create the path.
+     */
+    bool check_and_create_path ();
 };
 
 #endif
