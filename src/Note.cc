@@ -66,14 +66,11 @@ Note::Note( Project *project, const char *filename ) :
             }
         }
     }
-    // First line is title.
-    if ( fgets ( buffer, 1024, fp ) != nullptr ) {
-        int length = strlen ( buffer );
-        if ( buffer[length - 1] == '\n' ) {
-            buffer[length - 1] = '\0';
-        }
-        this->title = buffer;
-    }
+
+    long body_poss = ftell(fp);
+    // Read the title (first line after header)
+    this->read_title( fp );
+    body_poss = fseek(fp, body_poss, SEEK_SET);
 
     // Calculate HASH of note.
     // This is used to see if the note has changed.
@@ -84,6 +81,18 @@ Note::Note( Project *project, const char *filename ) :
     fclose ( fp );
 }
 
+void Note::read_title (  FILE *fp )
+{
+    char buffer[1024];
+    // First line is title.
+    if ( fgets ( buffer, 1024, fp ) != nullptr ) {
+        int length = strlen ( buffer );
+        if ( buffer[length - 1] == '\n' ) {
+            buffer[length - 1] = '\0';
+        }
+        this->title = buffer;
+    }
+}
 
 unsigned int Note::calculate_crc ( FILE *fp )
 {
@@ -326,16 +335,9 @@ void Note::edit ()
         this->copy_till_end_of_file ( fp, orig_file );
         // Get title.
         {
-            char buffer[1024];
             // Rewind.
             fseek ( fp, 0L, SEEK_SET );
-            if ( fgets ( buffer, 1024, fp ) != nullptr ) {
-                int length = strlen ( buffer );
-                if ( buffer[length - 1] == '\n' ) {
-                    buffer[length - 1] = '\0';
-                }
-                this->title = buffer;
-            }
+            this->read_title( fp );
         }
 
         // Update body hash.

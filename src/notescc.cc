@@ -296,6 +296,7 @@ public:
             command_projects_add_entry ( p, view, row );
         }
         view.print ();
+        return 0;
     }
 
     void command_view_autocomplete ()
