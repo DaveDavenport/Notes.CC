@@ -16,10 +16,10 @@ private:
     Project             *parent = nullptr;
 // Name of this project.
     std::string         name;
-// List of children projects (projects owns it and should free it)
-    std::list<Project*> child_projects;
 // List of notes contained in this project. (project does not own note)
     std::list<Note *>   notes;
+// List of children projects (projects owns it and should free it)
+    std::list<Project*> child_projects;
 
 protected:
     void set_parent ( Project *parent );
@@ -44,6 +44,24 @@ public:
     virtual std::string get_path ();
 
     void list_projects ();
+
+    unsigned int get_num_notes ()
+    {
+        return this->notes.size ();
+    }
+    unsigned int get_num_notes_recursive ()
+    {
+        unsigned int value = this->notes.size ();
+        for ( auto p : child_projects ) {
+            value += p->get_num_notes_recursive ();
+        }
+        return value;
+    }
+
+    const std::list < Project *> &get_child_projects () const
+    {
+        return this->child_projects;
+    }
 };
 
 #endif

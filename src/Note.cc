@@ -52,15 +52,8 @@ Note::Note( Project *project, const char *filename ) :
         if ( sep != nullptr ) {
             *sep = '\0';
             sep++;
-            if ( strcasecmp ( buffer, "title" ) == 0 ) {
-                this->title = ( sep + 1 );
-                // trim trailing \n
-                // TODO: Trim white-space
-                this->title.erase (
-                    this->title.end () - 1,
-                    this->title.end () );
-            }
-            else if ( strcasecmp ( buffer, "revision" ) == 0 ) {
+
+            if ( strcasecmp ( buffer, "revision" ) == 0 ) {
                 sep[strlen ( sep )] = '\0';
                 this->revision      = std::stoul ( sep + 1 );
             }
@@ -72,6 +65,14 @@ Note::Note( Project *project, const char *filename ) :
                 }
             }
         }
+    }
+    // First line is title.
+    if ( fgets ( buffer, 1024, fp ) != nullptr ) {
+        int length = strlen ( buffer );
+        if ( buffer[length - 1] == '\n' ) {
+            buffer[length - 1] = '\0';
+        }
+        this->title = buffer;
     }
 
     // Calculate HASH of note.
@@ -177,7 +178,7 @@ void Note::view ()
     // Skip header.
     char buffer[1024];
     int  start = 0;
-    while ( fgets ( buffer, 1024, fp ) != nullptr && start < 2 ) {
+    while ( start < 2 && fgets ( buffer, 1024, fp ) != nullptr ) {
         if ( buffer[0] == '-' ) {
             start++;
         }
@@ -236,7 +237,6 @@ void Note::write_body ( FILE *fpout )
 void Note::write_header ( FILE *fpout )
 {
     fprintf ( fpout, "---\n" );
-    fprintf ( fpout, "title: %s\n", this->title.c_str () );
     // Print date.
     char buffer[256];
     strftime ( buffer, 256, "%a %b %d %T %z %Y", &( this->last_edit_time ) );
@@ -324,6 +324,19 @@ void Note::edit ()
         fseek ( fp, 0L, SEEK_SET );
         // Write body
         this->copy_till_end_of_file ( fp, orig_file );
+        // Get title.
+        {
+            char buffer[1024];
+            // Rewind.
+            fseek ( fp, 0L, SEEK_SET );
+            if ( fgets ( buffer, 1024, fp ) != nullptr ) {
+                int length = strlen ( buffer );
+                if ( buffer[length - 1] == '\n' ) {
+                    buffer[length - 1] = '\0';
+                }
+                this->title = buffer;
+            }
+        }
 
         // Update body hash.
         this->hash = new_hash;

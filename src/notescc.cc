@@ -44,6 +44,7 @@ const char * commands[] =
     "view",
     "list",
     "delete",
+    "projects",
     nullptr
 };
 
@@ -66,7 +67,13 @@ public:
     void add_filter ( std::string value )
     {
         for ( auto iter = start_notes.begin (); iter != start_notes.end (); iter++ ) {
-            Note *note  = *iter;
+            Note *note = *iter;
+
+            // Skip empty elements.
+            if ( note == nullptr ) {
+                continue;
+            }
+
             bool remove = true;
 
             if ( note->get_title ().rfind ( value ) != std::string::npos ) {
@@ -267,6 +274,30 @@ public:
         return iter;
     }
 
+    static void command_projects_add_entry ( Project *p, TableView &view, unsigned int &row )
+    {
+        view[0].set_value ( row, p->get_name () );
+        std::string nnotes =
+            std::to_string ( p->get_num_notes () ) + "/" + std::to_string ( p->get_num_notes_recursive () );
+        view[1].set_value ( row, nnotes );
+        row++;
+        view++;
+        for ( auto pc : p->get_child_projects () ) {
+            command_projects_add_entry ( pc, view, row );
+        }
+    }
+    int command_projects ( int argc, char **argv )
+    {
+        TableView view;
+        view.add_column ( "Project", color_blue );
+        view.add_column ( "Num. Notes", color_white );
+        unsigned int row = 0;
+        for ( auto p : this->get_child_projects () ) {
+            command_projects_add_entry ( p, view, row );
+        }
+        view.print ();
+    }
+
     void command_view_autocomplete ()
     {
         for ( auto note : notes ) {
@@ -310,10 +341,7 @@ public:
     void run ( int argc, char **argv )
     {
         int index = 1;
-        // In theory we could concatenate commands.. Disabled for now
-        // TODO: See how to handle concatenation, esp with things like
-        // edit.
-        if ( index < argc ) {
+        while ( index < argc ) {
             if ( strcmp ( argv[index], "--complete" ) == 0 ) {
                 index++;
                 index += this->autocomplete ( argc - index, &argv[index] );
@@ -329,6 +357,10 @@ public:
             else if ( strcmp ( argv[index], "edit" ) == 0 ) {
                 index++;
                 index += this->command_edit ( argc - index, &argv[index] );
+            }
+            else if ( strcmp ( argv[index], "projects" ) == 0 ) {
+                index++;
+                index += this->command_projects ( argc - index, &argv[index] );
             }
             else {
                 fprintf ( stderr, "Invalid argument: %s\n", argv[index] );
