@@ -21,11 +21,12 @@ private:
     std::string filename;
 
 // Note properties
-    std::string  title;
-    struct tm    last_edit_time = { 0, };
-    unsigned int id             = 0;
+    std::string   title          = "unset";
+    struct tm     last_edit_time = { 0, };
+    unsigned int  id             = 0;
+    unsigned long revision       = 0;
 
-    uint32_t     hash = 0;
+    uint32_t      hash = 0;
 
 public:
     Note( Project *project, const char *filename );
@@ -60,6 +61,20 @@ public:
      * Compile the note and view it.
      */
     void view ();
+
+    /**
+     * Edit the note.
+     */
+    void edit ();
+private:
+    void write_body ( FILE *fpout );
+    void write_header ( FILE *header );
+    /**
+     * This function does nothing more then a copy
+     * till end of file.
+     */
+    void copy_till_end_of_file ( FILE *fp_edited_in, FILE *fpout );
+    unsigned int calculate_crc ( FILE *fp );
 };
 
 #endif

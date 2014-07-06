@@ -19,6 +19,12 @@
 extern "C" {
 #include <mkdio.h>
 }
+
+/**
+ * TODO:
+ *  * Remove Magick limit of 1024 for lines.
+ */
+
 /**
  * Notes implementation code.
  */
@@ -31,7 +37,7 @@ Note::Note( Project *project, const char *filename ) :
     assert ( fp != nullptr );
     char        buffer[1024];
     int         start = 0;
-    while ( fgets ( buffer, 1024, fp ) != nullptr && start < 2 ) {
+    while ( start < 2 && fgets ( buffer, 1024, fp ) != nullptr ) {
         // Only parse section between '-'.
         if ( buffer[0] == '-' ) {
             start++;
@@ -55,6 +61,8 @@ Note::Note( Project *project, const char *filename ) :
                     this->title.end () );
             }
             else if ( strcasecmp ( buffer, "revision" ) == 0 ) {
+                sep[strlen ( sep )] = '\0';
+                this->revision      = std::stoul ( sep + 1 );
             }
             else if ( strcasecmp ( buffer, "date" ) == 0 ) {
                 sep[strlen ( sep )] = '\0';
@@ -70,23 +78,32 @@ Note::Note( Project *project, const char *filename ) :
     // This is used to see if the note has changed.
     // TODO: This is not needed at startup, if it gets to slow, move it.
 #ifndef NO_HASH
-    rhash  ctx = rhash_init ( RHASH_CRC32 );
-    size_t rsize;
+    this->hash = this->calculate_crc ( fp );
+#endif
+    fclose ( fp );
+}
+
+
+unsigned int Note::calculate_crc ( FILE *fp )
+{
+    char         buffer[1024];
+    unsigned int retv = 0;
+    rhash        ctx  = rhash_init ( RHASH_CRC32 );
+    size_t       rsize;
     while ( ( rsize = fread ( buffer, 1, 1024, fp ) ) > 0 ) {
         rhash_update ( ctx, buffer, rsize );
     }
     rhash_final ( ctx, nullptr );
 
-    rhash_print ( (char *) &( this->hash ), ctx, 0, RHPR_RAW );
+    rhash_print ( (char *) &( retv ), ctx, 0, RHPR_RAW );
     rhash_free ( ctx );
-#endif
-    fclose ( fp );
+    return retv;
 }
 
 std::string Note::get_modtime ()
 {
-    char buffer[1024];
-    strftime ( buffer, 1024, "%F", &( this->last_edit_time ) );
+    char buffer[256];
+    strftime ( buffer, 256, "%F", &( this->last_edit_time ) );
     return std::string ( buffer );
 }
 void Note::print ()
@@ -180,11 +197,140 @@ void Note::view ()
     // Fire up browser.
     char *command;
     if ( asprintf ( &command, "xdg-open %s", path ) > 0 ) {
-        pid_t pid = exec_cmd ( command );
-        waitpid ( pid, NULL, WNOHANG );
-        printf ( "done\n" );
+        exec_cmd ( command );
         free ( command );
     }
 
     free ( path );
+}
+
+void Note::write_body ( FILE *fpout )
+{
+    std::string fpath = project->get_path () + "/" + filename;
+    FILE        *fp   = fopen ( fpath.c_str (), "r" );
+    if ( fp == nullptr ) {
+        fprintf ( stderr, "Failed to open note: %s\n", fpath.c_str () );
+        return;
+    }
+
+    // Skip header.
+    char buffer[1024];
+    int  start = 0;
+    while ( start < 2 && fgets ( buffer, 1024, fp ) != nullptr ) {
+        if ( buffer[0] == '-' ) {
+            start++;
+        }
+    }
+
+    this->copy_till_end_of_file ( fp, fpout );
+
+    fclose ( fp );
+}
+
+
+void Note::write_header ( FILE *fpout )
+{
+    fprintf ( fpout, "---\n" );
+    fprintf ( fpout, "title: %s\n", this->title.c_str () );
+    // Print date.
+    char buffer[256];
+    strftime ( buffer, 256, "%a %b %d %T %z %Y", &( this->last_edit_time ) );
+    fprintf ( fpout, "date: %s\n", buffer );
+    if ( revision > 0 ) {
+        fprintf ( fpout, "revision: %lu\n", this->revision );
+    }
+    fprintf ( fpout, "---\n" );
+}
+
+void Note::copy_till_end_of_file ( FILE *fp_edited_in, FILE *fpout )
+{
+    char   buffer[1024];
+    size_t rsize;
+    while ( ( rsize = fread ( buffer, 1, 1024, fp_edited_in ) ) > 0 ) {
+        fwrite ( buffer, 1, rsize, fpout );
+    }
+}
+
+void Note::edit ()
+{
+    // Create temp filename.
+    // This is used to store the edited note.
+    char *path;
+    if ( asprintf ( &path, "/tmp/notecc-%u.md", this->hash ) <= 0 ) {
+        fprintf ( stderr, "Failed to create note tmp path\n" );
+        return;
+    }
+
+    // Open the temp file and write the body of the note.
+    FILE *fp = fopen ( path, "w" );
+    if ( fp == nullptr ) {
+        fprintf ( stderr, "Failed to open temp path: %s\n", path );
+        free ( path );
+        return;
+    }
+
+    this->write_body ( fp );
+    fclose ( fp );
+
+    // Execute editor
+    char *command;
+    if ( asprintf ( &command, "${EDITOR} %s", path ) > 0 ) {
+        pid_t pid = exec_cmd ( command );
+        // Wait till client is done.
+        waitpid ( pid, NULL, 0 );
+        printf ( "done: %d \n", pid );
+        free ( command );
+    }
+
+    // Re-open edited note.
+    fp = fopen ( path, "r" );
+    if ( fp == nullptr ) {
+        fprintf ( stderr, "Failed to open temp path: %s\n", path );
+        free ( path );
+        return;
+    }
+
+    unsigned int new_hash = this->calculate_crc ( fp );
+
+    if ( new_hash != this->hash ) {
+        std::string fpath = project->get_path () + "/" + filename;
+        printf ( "Note has been changed\n" );
+        printf ( "Saving note: %s\n", fpath.c_str () );
+        // Increment revision number. (TODO: get from git?)
+        this->revision++;
+        // Update last edited time.
+        time_t cur_time = time ( NULL );
+        localtime_r ( &cur_time, &( this->last_edit_time ) );
+
+
+        FILE *orig_file = fopen ( fpath.c_str (), "w" );
+        if ( orig_file == nullptr ) {
+            fprintf ( stderr, "Failed to open original note for writing: %s\n", strerror ( errno ) );
+            fprintf ( stderr, "Not saving note, you can find edit here: %s.\n", path );
+            free ( path );
+            fclose ( fp );
+            return;
+        }
+
+        // Write the header.
+        this->write_header ( orig_file );
+
+        // Rewind.
+        fseek ( fp, 0L, SEEK_SET );
+        // Write body
+        this->copy_till_end_of_file ( fp, orig_file );
+
+        // Update body hash.
+        this->hash = new_hash;
+
+        fclose ( orig_file );
+
+        printf ( "Note successfully edited.\n" );
+    }
+    else {
+        printf ( "Note unchanged, doing nothing.\n" );
+    }
+
+    free ( path );
+    fclose ( fp );
 }

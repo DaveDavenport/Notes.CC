@@ -37,15 +37,6 @@ struct timespec _tick_stop;
 
 
 // List of supported commands.
-typedef enum _MainCommands
-{
-    MC_ADD,
-    MC_EDIT,
-    MC_VIEW,
-    MC_LIST,
-    MC_DELETE,
-    MC_NUM
-} MainCommands;
 const char * commands[] =
 {
     "add",
@@ -111,7 +102,131 @@ public:
         return db_path;
     }
 
+    void display_notes ( std::vector<Note *> & view_notes )
+    {
+        TableView view;
 
+        // Add the columns
+        view.add_column ( "ID", color_bold );
+        view.add_column ( "Project", color_white_bold );
+        view.add_column ( "Last edited", color_blue );
+        view.add_column ( "CRC", color_red );
+        view.add_column ( "Description" );
+
+        // TODO: Add filter.
+        // NoteFilter filter();
+        // for ( auto arg : argv ) { filter.push_element(); }
+
+        for ( auto note : view_notes ) {
+            // if ( filter.skip_note(note) ) continue;
+            unsigned int row_index = note->get_id () - 1;
+            view[0].set_value ( row_index, std::to_string ( note->get_id () ) );
+            view[1].set_value ( row_index, note->get_project () );
+            view[2].set_value ( row_index, note->get_modtime () );
+            view[3].set_value ( row_index, std::to_string ( note->get_body_crc () ) );
+            view[4].set_value ( row_index, note->get_title () );
+            view++;
+        }
+        view.print ();
+    }
+
+    /**
+     * @param argc Number of renaming commandline options.
+     * @param argv Remaining commandline options.
+     *
+     * Edit a notes.
+     *
+     * @returns number of consumed commandline options.
+     */
+    int command_edit ( int argc, char ** argv )
+    {
+        // TODO: abstract this in a 'get note'
+        int cargs = 0;
+        if ( argc <= 0 ) {
+            fprintf ( stderr, "edit requires one argument\n" );
+            return cargs;
+        }
+
+        cargs++;
+        int nindex = std::stoi ( argv[0] );
+        if ( nindex < 1 || nindex > (int) notes.size () ) {
+            fprintf ( stderr, "Invalid note id: %d\n", nindex );
+            return cargs;
+        }
+        Note *note = notes[nindex - 1];
+
+        // Edit the note.
+        note->edit ();
+
+        return cargs;
+    }
+
+    /**
+     * @param argc Number of renaming commandline options.
+     * @param argv Remaining commandline options.
+     *
+     * View a notes.
+     *
+     * @returns number of consumed commandline options.
+     */
+    int command_view ( int argc, char ** argv )
+    {
+        // TODO: abstract this in a 'get note'
+        // Note *note = this->get_note (argc[in], argv[in], cargs[out]);
+        int cargs = 0;
+        if ( argc <= 0 ) {
+            fprintf ( stderr, "view requires one argument\n" );
+            return cargs;
+        }
+
+        cargs++;
+        int nindex = std::stoi ( argv[0] );
+        if ( nindex < 1 || nindex > (int) notes.size () ) {
+            fprintf ( stderr, "Invalid note id: %d\n", nindex );
+            return cargs;
+        }
+        Note *note = notes[nindex - 1];
+
+        note->view ();
+
+
+
+        return cargs;
+    }
+
+
+    /**
+     * @param argc Number of renaming commandline options.
+     * @param argv Remaining commandline options.
+     *
+     * List the notes.
+     *
+     * @returns number of consumed commandline options.
+     */
+    int command_list ( int argc, char ** argv )
+    {
+        this->display_notes ( this->notes );
+        return 0;
+    }
+
+    void command_view_autocomplete ()
+    {
+        for ( auto note : notes ) {
+            printf ( "%u\n", note->get_id () );
+        }
+    }
+
+    void command_edit_autocomplete ()
+    {
+        for ( auto note : notes ) {
+            printf ( "%u\n", note->get_id () );
+        }
+    }
+
+
+    /**
+     * Implement the autocomplete command.
+     */
     int autocomplete ( int argc, char **argv )
     {
         if ( argc == 0 ) {
@@ -121,6 +236,14 @@ public:
             }
             return 0;
         }
+        if ( strcasecmp ( argv[0], "view" ) == 0 ) {
+            this->command_view_autocomplete ();
+            return 1;
+        }
+        else if ( strcasecmp ( argv[0], "edit" ) == 0 ) {
+            this->command_edit_autocomplete ();
+            return 1;
+        }
         this->list_projects ();
 
         return 1;
@@ -129,51 +252,28 @@ public:
     void run ( int argc, char **argv )
     {
         int index = 1;
-        while ( index < argc ) {
+        // In theory we could concatenate commands.. Disabled for now
+        // TODO: See how to handle concatenation, esp with things like
+        // edit.
+        if ( index < argc ) {
             if ( strcmp ( argv[index], "--complete" ) == 0 ) {
                 index++;
                 index += this->autocomplete ( argc - index, &argv[index] );
             }
             else if ( strcmp ( argv[index], "view" ) == 0 ) {
-                if ( argc <= ( index + 1 ) ) {
-                    fprintf ( stderr, "view requires one argument\n" );
-                    return;
-                }
-                int nindex = std::stoi ( argv[index + 1] );
-                if ( nindex < 1 || nindex > (int) notes.size () ) {
-                    fprintf ( stderr, "Invalid note id: %d\n", nindex );
-                    return;
-                }
-                Note *note = notes[nindex - 1];
-
-                note->view ();
-
-
-                index += 2;
+                index++;
+                index += this->command_view ( argc - index, &argv[index] );
             }
             else if ( strcmp ( argv[index], "list" ) == 0 ) {
-                TableView view;
-
-                // Add the columns
-                view.add_column ( "ID", color_bold );
-                view.add_column ( "Project", color_white_bold );
-                view.add_column ( "Last edited", color_blue );
-                view.add_column ( "CRC", color_red );
-                view.add_column ( "Description" );
-                for ( auto note : notes ) {
-                    unsigned int row_index = note->get_id () - 1;
-                    view[0].set_value ( row_index, std::to_string ( note->get_id () ) );
-                    view[1].set_value ( row_index, note->get_project () );
-                    view[2].set_value ( row_index, note->get_modtime () );
-                    view[3].set_value ( row_index, std::to_string ( note->get_body_crc () ) );
-                    view[4].set_value ( row_index, note->get_title () );
-                    view++;
-                }
-                view.print ();
                 index++;
+                index += this->command_list ( argc - index, &argv[index] );
+            }
+            else if ( strcmp ( argv[index], "edit" ) == 0 ) {
+                index++;
+                index += this->command_edit ( argc - index, &argv[index] );
             }
             else {
-                std::cerr << "Invalid argument: " << argv[index] << std::endl;
+                fprintf ( stderr, "Invalid argument: %s\n", argv[index] );
                 return;
             }
         }
@@ -220,8 +320,6 @@ int main ( int argc, char ** argv )
 
     rhash_library_init ();
 
-    TIC ( "RHash" );
-
     if ( asprintf ( &path, "%s/Notes2/", getenv ( "HOME" ) ) == -1 ) {
         fprintf ( stderr, "Failed to get path\n" );
         return EXIT_FAILURE;
@@ -231,6 +329,8 @@ int main ( int argc, char ** argv )
     notes.run ( argc, argv );
 
     free ( path );
-    TIC ( "finish" );
+    if ( argc < 2 || strcasecmp ( argv[1], "--complete" ) ) {
+        TIC ( "finish" );
+    }
     return EXIT_SUCCESS;
 }
