@@ -162,7 +162,9 @@ public:
 
         // Add the columns
         view.add_column ( "ID", color_bold );
+        view[0].set_left_align ();
         view.add_column ( "Rev.", color_blue );
+        view[1].set_left_align ();
         view.add_column ( "Project", color_white_bold );
         view.add_column ( "Last edited", color_green );
         view.add_column ( "Description" );
@@ -291,6 +293,7 @@ public:
         TableView view;
         view.add_column ( "Project", color_blue );
         view.add_column ( "Num. Notes", color_white );
+        view[1].set_left_align ();
         unsigned int row = 0;
         for ( auto p : this->get_child_projects () ) {
             command_projects_add_entry ( p, view, row );

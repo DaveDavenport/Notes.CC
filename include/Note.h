@@ -80,7 +80,7 @@ private:
      */
     void copy_till_end_of_file ( FILE *fp_edited_in, FILE *fpout );
     unsigned int calculate_crc ( FILE *fp );
-    void read_title( FILE *fp );
+    void read_title ( FILE *fp );
 };
 
 #endif

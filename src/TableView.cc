@@ -43,7 +43,7 @@ void TableColumn::print ( unsigned int row ) const
     if ( color ) {
         fputs ( this->color, stdout );
     }
-    printf ( "%-*s", this->width, fields[row].c_str () );
+    printf ( this->format, this->width, fields[row].c_str () );
     if ( color ) {
         fputs ( color_reset, stdout );
     }

@@ -67,10 +67,10 @@ Note::Note( Project *project, const char *filename ) :
         }
     }
 
-    long body_poss = ftell(fp);
+    long body_poss = ftell ( fp );
     // Read the title (first line after header)
-    this->read_title( fp );
-    body_poss = fseek(fp, body_poss, SEEK_SET);
+    this->read_title ( fp );
+    body_poss = fseek ( fp, body_poss, SEEK_SET );
 
     // Calculate HASH of note.
     // This is used to see if the note has changed.
@@ -333,12 +333,10 @@ void Note::edit ()
         fseek ( fp, 0L, SEEK_SET );
         // Write body
         this->copy_till_end_of_file ( fp, orig_file );
+        // Rewind.
         // Get title.
-        {
-            // Rewind.
-            fseek ( fp, 0L, SEEK_SET );
-            this->read_title( fp );
-        }
+        fseek ( fp, 0L, SEEK_SET );
+        this->read_title ( fp );
 
         // Update body hash.
         this->hash = new_hash;
