@@ -52,6 +52,43 @@ const char * commands[] =
  * Classes, list, strings are ok.. Templates are already doubtful.
  */
 
+class NotesFilter
+{
+private:
+    std::vector<Note *> start_notes;
+public:
+    NotesFilter( std::vector< Note *> notes )
+    {
+        // Copy the list!
+        start_notes = notes;
+    }
+
+    void add_filter ( std::string value )
+    {
+        for ( auto iter = start_notes.begin (); iter != start_notes.end (); iter++ ) {
+            Note *note  = *iter;
+            bool remove = true;
+
+            if ( note->get_title ().rfind ( value ) != std::string::npos ) {
+                remove = false;
+            }
+            if ( remove && note->get_project_name ().rfind ( value ) != std::string::npos ) {
+                remove =
+                    false;
+            }
+
+            if ( remove ) {
+                *iter = nullptr;
+            }
+        }
+    }
+
+    const std::vector<Note *> &get_filtered_notes () const
+    {
+        return start_notes;
+    }
+};
+
 
 // The Main object, this is also the root node.
 class NotesCC : public Project
@@ -64,14 +101,24 @@ private:
 
 
 public:
+    /**
+     * This function is used to sort the notes and assign them an id.
+     * Sorting should be stable between runs (when there is no edit of note).
+     */
     static bool notes_sort ( Note *a, Note *b )
     {
-        int time = ( a->get_time_t () - b->get_time_t () );
-        if ( time == 0 ) {
-            return a->get_title ().compare ( b->get_title () ) < 0;
-            // TODO sort on filename last resort, so we get a stable sort.
+        time_t diff_time = ( a->get_time_t () - b->get_time_t () );
+        // If they are of equal time.
+        if ( diff_time == 0 ) {
+            int retv = a->get_title ().compare ( b->get_title () );
+            if ( retv < 0 ) {
+                return true;
+            }
+            // Sort on hash as a last resort, so we get a stable sort.
+            return a->get_body_crc () - b->get_body_crc () > 0;
         }
-        return time < 0;
+        // If A is later then b it should go above a.
+        return diff_time < 0;
     }
     NotesCC( const char *path ) : Project ( "" )
     {
@@ -102,30 +149,35 @@ public:
         return db_path;
     }
 
-    void display_notes ( std::vector<Note *> & view_notes )
+    void display_notes ( const std::vector<Note *> & view_notes )
     {
         TableView view;
 
         // Add the columns
         view.add_column ( "ID", color_bold );
+        view.add_column ( "Rev.", color_blue );
         view.add_column ( "Project", color_white_bold );
-        view.add_column ( "Last edited", color_blue );
-        view.add_column ( "CRC", color_red );
+        view.add_column ( "Last edited", color_green );
         view.add_column ( "Description" );
 
-        // TODO: Add filter.
-        // NoteFilter filter();
-        // for ( auto arg : argv ) { filter.push_element(); }
-
+        unsigned int row_index = 0;
         for ( auto note : view_notes ) {
-            // if ( filter.skip_note(note) ) continue;
-            unsigned int row_index = note->get_id () - 1;
+            // Skip empty elements.
+            if ( note == nullptr ) {
+                continue;
+            }
             view[0].set_value ( row_index, std::to_string ( note->get_id () ) );
-            view[1].set_value ( row_index, note->get_project () );
-            view[2].set_value ( row_index, note->get_modtime () );
-            view[3].set_value ( row_index, std::to_string ( note->get_body_crc () ) );
+            if ( note->get_revision () > 0 ) {
+                view[1].set_value ( row_index, std::to_string ( note->get_revision () ) );
+            }
+            else{
+                view[1].set_value ( row_index, "" );
+            }
+            view[2].set_value ( row_index, note->get_project_name () );
+            view[3].set_value ( row_index, note->get_modtime () );
             view[4].set_value ( row_index, note->get_title () );
             view++;
+            row_index++;
         }
         view.print ();
     }
@@ -205,8 +257,14 @@ public:
      */
     int command_list ( int argc, char ** argv )
     {
-        this->display_notes ( this->notes );
-        return 0;
+        int         iter = 0;
+        NotesFilter filter ( this->notes );
+
+        for (; iter < argc; iter++ ) {
+            filter.add_filter ( argv[iter] );
+        }
+        this->display_notes ( filter.get_filtered_notes () );
+        return iter;
     }
 
     void command_view_autocomplete ()

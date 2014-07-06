@@ -126,6 +126,11 @@ time_t Note::get_time_t ()
     return mktime ( &this->last_edit_time );
 }
 
+unsigned long Note::get_revision () const
+{
+    return this->revision;
+}
+
 /**
  * TODO: Cleanup
  * Make a separate launcher that can both be blocking and non-blocking.

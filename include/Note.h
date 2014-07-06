@@ -22,7 +22,7 @@ private:
 
 // Note properties
     std::string   title          = "unset";
-    struct tm     last_edit_time = { 0, };
+    struct tm     last_edit_time = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     unsigned int  id             = 0;
     unsigned long revision       = 0;
 
@@ -37,9 +37,12 @@ public:
     {
         return this->hash;
     }
+
     void set_id ( unsigned int id );
+
     time_t get_time_t ();
-    std::string get_title () const
+
+    const std::string &get_title () const
     {
         return this->title;
     }
@@ -50,12 +53,14 @@ public:
         return this->id;
     }
 
-    std::string get_project ()
+    const std::string get_project_name ()
     {
         return this->project->get_name ();
     }
 
     std::string get_modtime ();
+
+    unsigned long get_revision () const;
 
     /**
      * Compile the note and view it.
