@@ -3,7 +3,7 @@ SOURCES=$(wildcard src/*.cc)
 HEADERS=$(wildcard include/*.h)
 OBJECTS=$(SOURCES:%.cc=%.o)
 OUT=notescc
-CXXFLAGS=-std=c++11 -O2 -g3 -Wall -Iinclude/ -Wall -Wextra
+CXXFLAGS=-std=c++11 -O2 -g3 -Wall -Iinclude/ -I/usr/include/ -Wall -Wextra
 
 all: $(OUT)
 
@@ -11,7 +11,7 @@ all: $(OUT)
 $(OBJECTS): $(HEADERS)
 
 $(OUT): $(OBJECTS)
-	$(CXX) -o $@ $^ -lrhash -lmarkdown
+	$(CXX) -o $@ $^ -lrhash -lmarkdown -lgit2
 
 clean:
 	rm -f $(OBJECTS) $(OUT)

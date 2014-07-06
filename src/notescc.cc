@@ -15,6 +15,7 @@
 #include <TableView.h>
 
 #include <rhash.h>
+#include <git2.h>
 
 struct timespec _tick_start;
 struct timespec _tick_stop;
@@ -48,6 +49,25 @@ const char * commands[] =
     "projects",
     nullptr
 };
+
+git_commit * getLastCommit ( git_repository * repo )
+{
+    int        rc;
+    git_commit * commit = NULL;   /* the result */
+    git_oid    oid_parent_commit; /* the SHA1 for last commit */
+
+    /* resolve HEAD into a SHA1 */
+    rc = git_reference_name_to_id ( &oid_parent_commit, repo, "HEAD" );
+    if ( rc == 0 ) {
+        /* get the actual commit structure */
+        rc = git_commit_lookup ( &commit, repo, &oid_parent_commit );
+        if ( rc == 0 ) {
+            return commit;
+        }
+    }
+    return NULL;
+}
+
 
 /**
  * This project is written in C++, but tries to stick closer to C.
@@ -107,6 +127,10 @@ private:
 // Root project.
     std::vector<Note *> notes;
 
+    git_repository      *git_repo        = nullptr;
+    git_index           * git_repo_index = nullptr;
+    bool                git_changed      = false;
+
 
 public:
     /**
@@ -128,22 +152,154 @@ public:
         // If A is later then b it should go above a.
         return diff_time < 0;
     }
-    NotesCC( const char *path ) : Project ( "" )
+
+
+    NotesCC()  : Project ( "" )
+    {
+    }
+
+    bool repository_stage_file ( std::string path )
+    {
+        printf ( "Staging file: %s\n", path.c_str () );
+
+        int rc = git_index_add_bypath ( git_repo_index, path.c_str () );
+        if ( rc != 0 ) {
+            fprintf ( stderr, "Failed add changes to index.\n" );
+        }
+        git_changed = true;
+    }
+
+    bool repository_commit_changes ( )
+    {
+        git_oid       tree_oid;
+        git_oid       oid_commit;
+        git_tree      * tree_cmt;
+        git_signature *sign;
+
+
+        if ( git_signature_default ( &sign, git_repo ) == GIT_ENOTFOUND ) {
+            git_signature_new ( (git_signature * *) &sign,
+                                "NotesCC", "dummy@nothere", 123456789, 0 );
+        }
+
+
+        // Create a tree to commit.
+        int rc = git_index_write_tree ( &tree_oid, git_repo_index );
+        if ( rc == 0 ) {
+            // Lookup the created tree,
+            rc = git_tree_lookup ( &tree_cmt, git_repo, &tree_oid );
+            if ( rc == 0 ) {
+                // Get last commit.
+                git_commit       *last_commit = getLastCommit ( git_repo );
+                int              entries      = ( last_commit == nullptr ) ? 0 : 1;
+                // Create new commit.
+                const git_commit *commits[] = { last_commit };
+                git_commit_create ( &oid_commit,
+                                    git_repo,
+                                    "HEAD",
+                                    sign, sign,
+                                    NULL,
+                                    "Edited note.\n",
+                                    tree_cmt, entries, commits );
+            }
+        }
+        git_signature_free ( sign );
+
+
+        rc = git_index_write ( git_repo_index );
+        if ( rc != 0 ) {
+            fprintf ( stderr, "Failed to write index to disc.\n" );
+            return false;
+        }
+
+        return true;
+    }
+
+    bool check_repository_state ()
+    {
+        // Check if it is in a sane state.
+        int state = git_repository_state ( git_repo );
+        if ( state != GIT_REPOSITORY_STATE_NONE ) {
+            fprintf ( stderr, "The repository is not in a clean state.\n" );
+            fprintf ( stderr, "Please resolve any outstanding issues first.\n" );
+            return false;
+        }
+        // TODO: Check bare directory
+        if ( git_repository_is_bare ( git_repo ) ) {
+            fprintf ( stderr, "Bare repositories are not supported.\n" );
+            return false;
+        }
+
+        // Check open changes.
+        git_status_list    *gsl = nullptr;
+        git_status_options opts = {
+            .version = GIT_STATUS_OPTIONS_VERSION,
+            .show    = GIT_STATUS_SHOW_WORKDIR_ONLY,
+            .flags   = GIT_STATUS_OPT_INCLUDE_UNTRACKED
+        };
+        if ( git_status_list_new ( &gsl, git_repo, &opts ) != 0 ) {
+            fprintf ( stderr, "Failed to get repository status.\n" );
+            return false;
+        }
+
+        size_t i, maxi = git_status_list_entrycount ( gsl );
+        bool   clean = true;
+        for ( i = 0; i < maxi; i++ ) {
+            const git_status_entry *s = git_status_byindex ( gsl, i );
+            if ( s->status != GIT_STATUS_CURRENT ) {
+                clean = false;
+            }
+        }
+        git_status_list_free ( gsl );
+        if ( !clean ) {
+            fprintf ( stderr, "The git repository is not clean, there are changes in the local \n" );
+            fprintf ( stderr, "work directory. Please commit these first.\n" );
+            return false;
+        }
+
+        if ( git_repository_index ( &git_repo_index, git_repo ) != 0 ) {
+            fprintf ( stderr, "Failed to read index from disc.\n" );
+            return false;
+        }
+        return true;
+    }
+    bool open_repository ( const char *path )
     {
         db_path = path;
-
-        this->Load ( this, "" );
+        // Check git repository.
+        if ( git_repository_open ( &git_repo, path ) != 0 ) {
+            fprintf ( stderr, "The repository directory '%s' is not a git repository.\n", path );
+            fprintf ( stderr, "Please initialize a new repository using git init.\n" );
+            return false;
+        }
+        if ( !this->check_repository_state () ) {
+            return false;
+        }
+        this->Load ( );
 
         std::sort ( this->notes.begin (), this->notes.end (), notes_sort );
 
         for ( auto note : this->notes ) {
             note->set_id ( ++this->last_note_id );
         }
+        return true;
     }
+
+
     ~NotesCC()
     {
         for ( auto note : notes ) {
             delete note;
+        }
+        if ( git_changed ) {
+            printf ( "Commiting changes to git.\n" );
+            repository_commit_changes ();
+        }
+        if ( git_repo_index != nullptr ) {
+            git_index_free ( git_repo_index );
+        }
+        if ( git_repo != nullptr ) {
+            git_repository_free ( git_repo );
         }
     }
 
@@ -155,6 +311,10 @@ public:
     std::string get_path ()
     {
         return db_path;
+    }
+    std::string get_relative_path ()
+    {
+        return "";
     }
 
     void display_notes ( const std::vector<Note *> & view_notes )
@@ -218,7 +378,11 @@ public:
         Note *note = notes[nindex - 1];
 
         // Edit the note.
-        note->edit ();
+        if ( note->edit () ) {
+            // Commit the result.
+            auto path = note->get_relative_path ();
+            repository_stage_file ( path );
+        }
 
         return cargs;
     }
@@ -289,7 +453,7 @@ public:
             command_projects_add_entry ( pc, view, row );
         }
     }
-    int command_projects ( int argc, char **argv )
+    int command_projects ( __attribute__( ( unused ) ) int argc, __attribute__( ( unused ) ) char **argv )
     {
         TableView view;
         view.add_column ( "Project", color_blue );
@@ -327,7 +491,9 @@ public:
     Project * get_or_create_project_from_name ( std::string pr )
     {
         Project *p = this;
-
+        if ( pr.empty () ) {
+            return p;
+        }
         // Validate the string.
         if ( !std::regex_match ( pr, std::regex ( "([a-zA-Z0-9]+.)*[a-zA-Z0-9]+" ) ) ) {
             fprintf ( stderr, "%s is an invalid Project name.\n", pr.c_str () );
@@ -376,6 +542,9 @@ public:
         if ( n != nullptr ) {
             this->notes.push_back ( n );
             n->edit ();
+            // Commit the result.
+            auto path = n->get_relative_path ();
+            repository_stage_file ( path );
         }
 
         return retv;
@@ -443,33 +612,36 @@ public:
     }
 
 private:
-    void Load ( Project *node, std::string path )
+    void Load ( )
     {
-        DIR *dir = opendir ( ( db_path + path ).c_str () );
-        if ( dir != NULL ) {
-            struct dirent *dirp;
-            while ( ( dirp = readdir ( dir ) ) != NULL ) {
-                // Skip hidden files (for now)
-                if ( dirp->d_name[0] == '.' ) {
-                    continue;
-                }
-                // Project
-                if ( dirp->d_type == DT_DIR ) {
-                    Project *p = new Project ( dirp->d_name );
-                    node->add_subproject ( p );
-
-                    // Recurse down in the structure.
-                    std::string np = path + "/" + dirp->d_name;
-                    Load ( p, np );
-                }
-                // Note
-                else if ( dirp->d_type == DT_REG ) {
-                    Note *note = new Note ( node, dirp->d_name );
-                    // Add to the flat list in the main.
-                    this->notes.push_back ( note );
-                }
+        // Iterate over all files in the git index.
+        size_t i, maxi = git_index_entrycount ( git_repo_index );
+        for ( i = 0; i < maxi; i++ ) {
+            const git_index_entry *entry = git_index_get_byindex ( git_repo_index, i );
+            // Do some path parsing magick.
+            char                  *path = strdup ( entry->path );
+            // Find filename.
+            char                  *filename = nullptr;
+            for ( int iter = strlen ( path ); path[iter] != '/' && iter >= 0; iter-- ) {
+                filename =
+                    &path[iter];
             }
-            closedir ( dir );
+            // Find project.
+            Project *p = this;
+            if ( filename != path ) {
+                *( filename - 1 ) = '\0';
+                for ( unsigned int iter = 0; iter < strlen ( path ); iter++ ) {
+                    if ( path[iter] == '/' ) {
+                        path[iter] = '.';
+                    }
+                }
+                p = this->get_or_create_project_from_name ( path );
+            }
+
+            Note *note = new Note ( p, filename );
+            // Add to the flat list in the main.
+            this->notes.push_back ( note );
+            free ( path );
         }
     }
 };
@@ -486,10 +658,11 @@ int main ( int argc, char ** argv )
         fprintf ( stderr, "Failed to get path\n" );
         return EXIT_FAILURE;
     }
-    NotesCC notes ( path );
+    NotesCC notes;
 
-    notes.run ( argc, argv );
-
+    if ( notes.open_repository ( path ) ) {
+        notes.run ( argc, argv );
+    }
     free ( path );
     if ( argc < 2 || strcasecmp ( argv[1], "--complete" ) ) {
         TIC ( "finish" );

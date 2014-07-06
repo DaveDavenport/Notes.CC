@@ -318,14 +318,15 @@ void Note::copy_till_end_of_file ( FILE *fp_edited_in, FILE *fpout )
     }
 }
 
-void Note::edit ()
+bool Note::edit ()
 {
+    bool changed = false;
     // Create temp filename.
     // This is used to store the edited note.
     char *path;
     if ( asprintf ( &path, "/tmp/notecc-%u.md", this->hash ) <= 0 ) {
         fprintf ( stderr, "Failed to create note tmp path\n" );
-        return;
+        return false;
     }
 
     // Open the temp file and write the body of the note.
@@ -333,7 +334,7 @@ void Note::edit ()
     if ( fp == nullptr ) {
         fprintf ( stderr, "Failed to open temp path: %s\n", path );
         free ( path );
-        return;
+        return false;
     }
 
     this->write_body ( fp );
@@ -354,7 +355,7 @@ void Note::edit ()
     if ( fp == nullptr ) {
         fprintf ( stderr, "Failed to open temp path: %s\n", path );
         free ( path );
-        return;
+        return false;
     }
 
     unsigned int new_hash = this->calculate_crc ( fp );
@@ -376,7 +377,7 @@ void Note::edit ()
             fprintf ( stderr, "Not saving note, you can find edit here: %s.\n", path );
             free ( path );
             fclose ( fp );
-            return;
+            return false;
         }
 
         // Write the header.
@@ -397,6 +398,7 @@ void Note::edit ()
         fclose ( orig_file );
 
         printf ( "Note successfully edited.\n" );
+        changed = true;
     }
     else {
         printf ( "Note unchanged, doing nothing.\n" );
@@ -404,4 +406,5 @@ void Note::edit ()
 
     free ( path );
     fclose ( fp );
+    return changed;
 }

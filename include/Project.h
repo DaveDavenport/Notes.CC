@@ -23,9 +23,9 @@ private:
 
 protected:
     void set_parent ( Project *parent );
-    bool is_root ();
 
 public:
+    bool is_root ();
     Project( const char *name );
 
     virtual ~Project();
@@ -43,6 +43,7 @@ public:
     void print ();
 
     virtual std::string get_path ();
+    virtual std::string get_relative_path ();
 
     void list_projects ();
 

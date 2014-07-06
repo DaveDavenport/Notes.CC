@@ -76,6 +76,14 @@ std::string Project::get_path ()
     return parent->get_path () + "/" + name;
 }
 
+std::string Project::get_relative_path ()
+{
+    if ( parent->is_root () ) {
+        return name;
+    }
+    return parent->get_relative_path () + "/" + name;
+}
+
 void Project::list_projects ()
 {
     if ( !this->is_root () ) {
@@ -106,7 +114,7 @@ static bool directory_exists ( const std::string &directory )
 
 bool Project::check_and_create_path ()
 {
-    if ( this->is_root () ) {
+    if ( !this->is_root () ) {
         if ( !parent->check_and_create_path () ) {
             return false;
         }

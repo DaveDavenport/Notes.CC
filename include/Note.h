@@ -71,7 +71,15 @@ public:
     /**
      * Edit the note.
      */
-    void edit ();
+    bool edit ();
+
+    std::string get_relative_path ()
+    {
+        if ( this->project->is_root () ) {
+            return this->filename;
+        }
+        return this->project->get_relative_path () + "/" + this->filename;
+    }
 private:
     void write_body ( FILE *fpout );
     void write_header ( FILE *header );
