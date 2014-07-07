@@ -21,7 +21,7 @@ CXXFLAGS=-std=c++11 -O0 -g3 -Wall -Wextra\
          $(READLINE_CFLAGS)\
          $(MARKDOWN_CFLAGS)
 
-LDLIBS=$(LIB2_LIBS) $(READLINE_LIBS) $(MARKDOWN_LIBS) -lrhash
+LDLIBS=$(LIB2_LIBS) $(READLINE_LIBS) $(MARKDOWN_LIBS) 
 
 all: $(OUT)
 
