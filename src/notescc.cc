@@ -43,6 +43,7 @@ struct timespec _tick_stop;
 // List of supported commands.
 const char * commands[] =
 {
+    "interactive",
     "add",
     "move",
     "edit",
@@ -52,25 +53,6 @@ const char * commands[] =
     "projects",
     nullptr
 };
-
-git_commit * getLastCommit ( git_repository * repo )
-{
-    int        rc;
-    git_commit * commit = NULL;   /* the result */
-    git_oid    oid_parent_commit; /* the SHA1 for last commit */
-
-    /* resolve HEAD into a SHA1 */
-    rc = git_reference_name_to_id ( &oid_parent_commit, repo, "HEAD" );
-    if ( rc == 0 ) {
-        /* get the actual commit structure */
-        rc = git_commit_lookup ( &commit, repo, &oid_parent_commit );
-        if ( rc == 0 ) {
-            return commit;
-        }
-    }
-    return NULL;
-}
-
 
 /**
  * This project is written in C++, but tries to stick closer to C.
@@ -161,6 +143,25 @@ public:
     {
     }
 
+    git_commit * repository_get_last_commit ( )
+    {
+        int        rc;
+        git_commit * commit = NULL;   /* the result */
+        git_oid    oid_parent_commit; /* the SHA1 for last commit */
+
+        /* resolve HEAD into a SHA1 */
+        rc = git_reference_name_to_id ( &oid_parent_commit, git_repo, "HEAD" );
+        if ( rc == 0 ) {
+            /* get the actual commit structure */
+            rc = git_commit_lookup ( &commit, git_repo, &oid_parent_commit );
+            if ( rc == 0 ) {
+                return commit;
+            }
+        }
+        return NULL;
+    }
+
+
     void repository_delete_file ( std::string path )
     {
         printf ( "Delete file: %s\n", path.c_str () );
@@ -203,7 +204,7 @@ public:
             rc = git_tree_lookup ( &tree_cmt, git_repo, &tree_oid );
             if ( rc == 0 ) {
                 // Get last commit.
-                git_commit       *last_commit = getLastCommit ( git_repo );
+                git_commit       *last_commit = repository_get_last_commit ( );
                 // If no last commit, create root commit.
                 int              entries = ( last_commit == nullptr ) ? 0 : 1;
                 // Create new commit.
@@ -215,7 +216,10 @@ public:
                                     NULL,
                                     "Edited note.\n",
                                     tree_cmt, entries, commits );
-                git_tree_free(tree_cmt);
+                git_tree_free ( tree_cmt );
+                if ( last_commit ) {
+                    git_commit_free ( last_commit );
+                }
             }
         }
         git_signature_free ( sign );
@@ -239,7 +243,7 @@ public:
             fprintf ( stderr, "Please resolve any outstanding issues first.\n" );
             return false;
         }
-        // TODO: Check bare directory
+        // Check bare directory
         if ( git_repository_is_bare ( git_repo ) ) {
             fprintf ( stderr, "Bare repositories are not supported.\n" );
             return false;
@@ -247,11 +251,11 @@ public:
 
         // Check open changes.
         git_status_list    *gsl = nullptr;
-        git_status_options opts = {
-            .version = GIT_STATUS_OPTIONS_VERSION,
-            .show    = GIT_STATUS_SHOW_WORKDIR_ONLY,
-            .flags   = GIT_STATUS_OPT_INCLUDE_UNTRACKED
-        };
+        git_status_options opts;
+        opts.version = GIT_STATUS_OPTIONS_VERSION;
+        opts.show    = GIT_STATUS_SHOW_WORKDIR_ONLY;
+        opts.flags   = GIT_STATUS_OPT_INCLUDE_UNTRACKED;
+
         if ( git_status_list_new ( &gsl, git_repo, &opts ) != 0 ) {
             fprintf ( stderr, "Failed to get repository status.\n" );
             return false;
@@ -266,6 +270,7 @@ public:
             }
         }
         git_status_list_free ( gsl );
+
         if ( !clean ) {
             fprintf ( stderr, "The git repository is not clean, there are changes in the local \n" );
             fprintf ( stderr, "work directory. Please commit these first.\n" );
@@ -278,6 +283,10 @@ public:
         }
         return true;
     }
+
+    /**
+     * Open the note repository.
+     */
     bool open_repository ( const char *path )
     {
         db_path = path;
@@ -650,33 +659,54 @@ public:
     /**
      * Implement the autocomplete command.
      */
-    int autocomplete ( int argc, char **argv )
+    void run_autocomplete ( int argc, char **argv )
     {
-        if ( argc == 0 ) {
+        if ( argc == 1 ) {
             // List commands.
             for ( int i = 0; commands[i] != nullptr; i++ ) {
                 std::cout << commands[i] << std::endl;
             }
-            return 0;
+            return;
         }
-        if ( strcasecmp ( argv[0], "view" ) == 0 ) {
-            this->command_view_autocomplete ();
-            return 1;
+        std::string command = argv[1];
+        if ( command == "view"  ) {
+            if ( argc == 2 ) {
+                this->command_view_autocomplete ();
+            }
+            return;
         }
-        else if ( strcasecmp ( argv[0], "edit" ) == 0 ) {
-            this->command_edit_autocomplete ();
-            return 1;
+        else if ( command == "edit"  ) {
+            if ( argc == 2 ) {
+                this->command_edit_autocomplete ();
+            }
+            return;
         }
-        this->list_projects ();
-
-        return 1;
+        else if ( command == "interactive" ||
+                  command == "projects" ) {
+            // Stop.
+            return;
+        }
+        else if ( command == "add" ) {
+            if ( argc == 2 ) {
+                this->list_projects ();
+            }
+            return;
+        }
     }
+
+    /**
+     * Interactive shell
+     */
     void interactive ()
     {
+        // Enable history.
         using_history ();
+
         do {
+            // Create interactive prompt.
             char *temp = readline ( "$ " );
 
+            // Quit on ctrl-d or quit.
             if ( temp == nullptr ) {
                 break;
             }
@@ -684,7 +714,9 @@ public:
                 free ( temp );
                 break;
             }
+            // Add entry to history.
             add_history ( temp );
+
             // Split into arc, argv structure.
             int  length     = strlen ( temp );
             int  argc       = 0;
@@ -692,14 +724,20 @@ public:
             char **argv     = nullptr;
             for ( int i = 0; i <= length; i++ ) {
                 if ( temp[i] == ' ' || temp[i] == '\0' ) {
-                    argv       = (char * *) realloc ( argv, sizeof ( char * ) * ( argc + 1 ) );
-                    argv[argc] = &temp[last_index];
-                    temp[i]    = '\0';
-                    argc++;
+                    if ( i != last_index ) {
+                        argv       = (char * *) realloc ( argv, sizeof ( char * ) * ( argc + 1 ) );
+                        argv[argc] = &temp[last_index];
+                        temp[i]    = '\0';
+                        argc++;
+                    }
                     last_index = i + 1;
                 }
             }
+
+            // Run parser.
             this->run ( argc, argv );
+
+            // Free
             free ( argv );
             free ( temp );
         } while ( true );
@@ -709,11 +747,7 @@ public:
     {
         int index = 0;
         while ( index < argc ) {
-            if ( strcmp ( argv[index], "--complete" ) == 0 ) {
-                index++;
-                index += this->autocomplete ( argc - index, &argv[index] );
-            }
-            else if ( strcmp ( argv[index], "view" ) == 0 ) {
+            if ( strcmp ( argv[index], "view" ) == 0 ) {
                 index++;
                 index += this->command_view ( argc - index, &argv[index] );
             }
@@ -742,9 +776,12 @@ public:
                 index += this->command_projects ( argc - index, &argv[index] );
             }
             else {
-                fprintf ( stderr, "Invalid argument: %s\n", argv[index] );
+                fprintf ( stderr, "Invalid argument: '%s'\n", argv[index] );
                 return;
             }
+        }
+        if ( argc == 0 ) {
+            this->command_list ( 0, NULL );
         }
     }
 
@@ -760,9 +797,9 @@ private:
             // Find filename.
             char                  *filename = nullptr;
             for ( int iter = strlen ( path ) - 1; iter >= 0 && path[iter] != '/'; iter-- ) {
-                filename =
-                    &path[iter];
+                filename = &path[iter];
             }
+
             // Find project.
             Project *p = this;
             if ( filename != path ) {
@@ -786,7 +823,9 @@ private:
 
 int main ( int argc, char ** argv )
 {
-    char *path = NULL;
+    bool autocomplete = false;
+    char *path        = NULL;
+
     INIT_TIC_TAC ()
 git_threads_init();
 
@@ -794,12 +833,23 @@ git_threads_init();
         fprintf ( stderr, "Failed to get path\n" );
         return EXIT_FAILURE;
     }
+
     NotesCC *notes = new NotesCC ();
 
+    // Open repository
     if ( notes->open_repository ( path ) ) {
+        // Check interactive mode.
         if ( argc == 2 && strcmp ( argv[1], "interactive" ) == 0 ) {
             notes->interactive ();
         }
+
+        // Check autocomplete.
+        else if ( argc > 1 && strcmp ( argv[1], "--complete" ) == 0 ) {
+            autocomplete = true;
+            notes->run_autocomplete ( argc - 1, &argv[1] );
+        }
+
+        // Commandline parser
         else {
             notes->run ( argc - 1, &argv[1] );
         }
@@ -807,7 +857,8 @@ git_threads_init();
 
     free ( path );
     delete notes;
-    if ( argc < 2 || strcasecmp ( argv[1], "--complete" ) ) {
+
+    if ( !autocomplete ) {
         TIC ( "finish" );
     }
     return EXIT_SUCCESS;

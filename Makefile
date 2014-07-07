@@ -16,7 +16,6 @@ OUT=notescc
 
 CXXFLAGS=-std=c++11 -O0 -g3 -Wall -Wextra\
          -Iinclude/\
-         -Wno-missing-field-initializers\
          $(LIB2_CFLAGS)\
          $(READLINE_CFLAGS)\
          $(MARKDOWN_CFLAGS)
