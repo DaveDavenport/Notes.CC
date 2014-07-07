@@ -419,3 +419,24 @@ bool Note::del ()
     fprintf ( stderr, "Failed to delete note: %s\n", strerror ( errno ) );
     return false;
 }
+
+bool Note::move ( Project *p )
+{
+    if ( !p->check_and_create_path ()  ) {
+        fprintf ( stderr, "Failed to create Project path.\n" );
+        return false;
+    }
+    std::string old_path = project->get_path () + "/" + filename;
+    // Remove from old project
+    this->project->remove_note ( this );
+    // Link to new project.
+    this->project = p;
+    this->project->add_note ( this );
+    std::string new_path = project->get_path () + "/" + filename;
+    if ( rename ( old_path.c_str (), new_path.c_str () ) ) {
+        fprintf ( stderr, "Failed to move note: %s to %s\nError: %s\n",
+                  old_path.c_str (), new_path.c_str (), strerror ( errno ) );
+        return false;
+    }
+    return true;
+}

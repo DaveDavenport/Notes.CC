@@ -58,6 +58,10 @@ public:
     {
         return this->project->get_name ();
     }
+    const Project * get_project ()
+    {
+        return this->project;
+    }
 
     std::string get_modtime ();
 
@@ -82,6 +86,8 @@ public:
     }
     // Delete a note.
     bool del ();
+
+    bool move ( Project *p );
 private:
     void write_body ( FILE *fpout );
     void write_header ( FILE *header );

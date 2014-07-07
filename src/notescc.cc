@@ -41,6 +41,7 @@ struct timespec _tick_stop;
 const char * commands[] =
 {
     "add",
+    "move",
     "edit",
     "view",
     "list",
@@ -182,7 +183,7 @@ public:
     {
         git_oid       tree_oid;
         git_oid       oid_commit;
-        git_tree      * tree_cmt;
+        git_tree      *tree_cmt;
         git_signature *sign;
 
 
@@ -200,7 +201,8 @@ public:
             if ( rc == 0 ) {
                 // Get last commit.
                 git_commit       *last_commit = getLastCommit ( git_repo );
-                int              entries      = ( last_commit == nullptr ) ? 0 : 1;
+                // If no last commit, create root commit.
+                int              entries = ( last_commit == nullptr ) ? 0 : 1;
                 // Create new commit.
                 const git_commit *commits[] = { last_commit };
                 git_commit_create ( &oid_commit,
@@ -284,10 +286,14 @@ public:
         if ( !this->check_repository_state () ) {
             return false;
         }
+
+        // Load the notes.
         this->Load ( );
 
+        // Sort the notes.
         std::sort ( this->notes.begin (), this->notes.end (), notes_sort );
 
+        // Gives them UIDs.
         for ( auto note : this->notes ) {
             note->set_id ( ++this->last_note_id );
         }
@@ -297,18 +303,24 @@ public:
 
     ~NotesCC()
     {
-        for ( auto note : notes ) {
-            delete note;
-        }
         if ( git_changed ) {
             printf ( "Commiting changes to git.\n" );
             repository_commit_changes ();
         }
+
+        // Clean git references.
         if ( git_repo_index != nullptr ) {
             git_index_free ( git_repo_index );
         }
         if ( git_repo != nullptr ) {
             git_repository_free ( git_repo );
+        }
+
+        // delete notes.
+        for ( auto note : notes ) {
+            if ( note != nullptr ) {
+                delete note;
+            }
         }
     }
 
@@ -321,6 +333,7 @@ public:
     {
         return db_path;
     }
+
     std::string get_relative_path ()
     {
         return "";
@@ -380,7 +393,7 @@ public:
 
         cargs++;
         int nindex = std::stoi ( argv[0] );
-        if ( nindex < 1 || nindex > (int) notes.size () ) {
+        if ( nindex < 1 || nindex > (int) notes.size () || notes[nindex - 1] == nullptr ) {
             fprintf ( stderr, "Invalid note id: %d\n", nindex );
             return cargs;
         }
@@ -416,15 +429,13 @@ public:
 
         cargs++;
         int nindex = std::stoi ( argv[0] );
-        if ( nindex < 1 || nindex > (int) notes.size () ) {
+        if ( nindex < 1 || nindex > (int) notes.size () || notes[nindex - 1] == nullptr ) {
             fprintf ( stderr, "Invalid note id: %d\n", nindex );
             return cargs;
         }
         Note *note = notes[nindex - 1];
 
         note->view ();
-
-
 
         return cargs;
     }
@@ -447,6 +458,40 @@ public:
             filter.add_filter ( argv[iter] );
         }
         this->display_notes ( filter.get_filtered_notes () );
+        return iter;
+    }
+
+    int command_move ( int argc, char **argv )
+    {
+        int iter = 0;
+        if ( argc < 2 ) {
+            fprintf ( stderr, "Move requires two arguments: <note id>  <project path>\n" );
+            return iter;
+        }
+        iter++;
+        int nindex = std::stoi ( argv[0] );
+        if ( nindex < 1 || nindex > (int) notes.size () || notes[nindex - 1] == nullptr ) {
+            fprintf ( stderr, "Invalid note id: %d\n", nindex );
+            return iter;
+        }
+        Note *note = notes[nindex - 1];
+
+        iter++;
+        std::string name = argv[1];
+        Project     *p   = this->get_or_create_project_from_name ( name );
+        if ( p == nullptr ) {
+            return iter;
+        }
+        if ( p == note->get_project () ) {
+            printf ( "Destination same as source.\n" );
+            return iter;
+        }
+        std::string old_path = note->get_relative_path ();
+        if ( note->move ( p ) ) {
+            std::string new_path = note->get_relative_path ();
+            this->repository_stage_file ( new_path );
+            this->repository_delete_file ( old_path );
+        }
         return iter;
     }
 
@@ -640,6 +685,10 @@ public:
             else if ( strcmp ( argv[index], "add" ) == 0 ) {
                 index++;
                 index += this->command_add ( argc - index, &argv[index] );
+            }
+            else if ( strcmp ( argv[index], "move" ) == 0 ) {
+                index++;
+                index += this->command_move ( argc - index, &argv[index] );
             }
             else if ( strcmp ( argv[index], "delete" ) == 0 ) {
                 index++;
