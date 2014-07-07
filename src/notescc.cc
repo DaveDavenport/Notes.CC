@@ -50,7 +50,6 @@ const char * commands[] =
     "list",
     "delete",
     "projects",
-    "pull",
     nullptr
 };
 
@@ -161,81 +160,7 @@ public:
     NotesCC()  : Project ( "" )
     {
     }
-    static int cred_acquire_cb(git_cred** cred,const char* url,const char *user,unsigned int, void* payload){
-        printf("credentials: %s %s\n", url, user);
-        return git_cred_ssh_key_from_agent(cred, user);
-    }
-    bool repository_pull ()
-    {
-        git_remote *remote = nullptr;
-        int rc = git_remote_load(&remote, git_repo, "origin");
-        if(rc != 0) {
-            const git_error *e = giterr_last();
-            fprintf(stderr, "Error: %d/%d: %s\n", rc, e->klass, e->message);
-            fprintf(stderr, "Failed to load remote repository\n" );
-            return false;
-        }
 
-        git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
-        callbacks.credentials = cred_acquire_cb;
-        rc = git_remote_set_callbacks(remote, &callbacks);
-        if(rc != 0) {
-            fprintf(stderr, "Failed to set callbacks\n" );
-            return false;
-        }
-        rc = git_remote_fetch(remote, NULL, NULL);
-        if(rc != 0) {
-            fprintf(stderr, "Failed to fetch from remote repository\n" );
-            return false;
-        }
-        git_remote_free(remote);
-
-        git_reference *headref = NULL;
-        int ret = git_reference_lookup(&headref, git_repo, "FETCH_HEAD");
-        if (ret != 0) {
-            const git_error *e = giterr_last();
-            fprintf(stderr, "Error: %d/%d: %s\n", ret, e->klass, e->message);
-            fprintf(stderr, "Failed to look up references for merge head\n" );
-            return false;
-        }
-        git_merge_head *head = NULL;
-        ret = git_merge_head_from_ref(&head, git_repo, headref);
-        if (ret != 0) {
-            const git_error *e = giterr_last();
-            fprintf(stderr, "Error: %d/%d: %s\n", ret, e->klass, e->message);
-            fprintf(stderr, "Failed to look up merge head\n" );
-            return false;
-        }
-
-        git_checkout_options checkout_opts = GIT_CHECKOUT_OPTIONS_INIT;
-        checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE;
-        git_merge_options merge_opts = GIT_MERGE_OPTIONS_INIT;
-        ret = git_merge(git_repo, (const git_merge_head **)&head, 1, &merge_opts, &checkout_opts);
-        if (ret != 0) {
-            const git_error *e = giterr_last();
-            fprintf(stderr, "Error: %d/%d: %s\n", ret, e->klass, e->message);
-            fprintf(stderr, "Failed merge \n" );
-            return false;
-        }
-
-        git_merge_head_free(head);
-        git_reference_free(headref);
-        git_changed =true;
-
-        //git_index_free(git_repo_index);
-        //git_repository_index(&git_repo_index, git_repo);
-        git_index_read(git_repo_index, true);
-        size_t i, maxi = git_index_entrycount ( git_repo_index );
-        for ( i = 0; i < maxi; i++ ) {
-            const git_index_entry *entry = git_index_get_byindex ( git_repo_index, i );
-            printf("%s\n", entry->path);
-        }
-        if(git_index_has_conflicts(git_repo_index)) {
-            printf("Index has conflicts\n");
-        }
-        
-        return true;
-    }
     void repository_delete_file ( std::string path )
     {
         printf ( "Delete file: %s\n", path.c_str () );
@@ -815,10 +740,6 @@ public:
             else if ( strcmp ( argv[index], "projects" ) == 0 ) {
                 index++;
                 index += this->command_projects ( argc - index, &argv[index] );
-            }
-            else if ( strcmp ( argv[index], "pull" ) == 0 ) {
-                index++;
-                repository_pull();
             }
             else {
                 fprintf ( stderr, "Invalid argument: %s\n", argv[index] );
