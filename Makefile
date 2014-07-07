@@ -6,9 +6,22 @@ OBJECTS=$(SOURCES:%.cc=%.o)
 LIB2_CFLAGS:=$(shell pkg-config --cflags libgit2)
 LIB2_LIBS:=$(shell pkg-config --libs libgit2)
 
+READLINE_CFLAGS:=
+READLINE_LIBS:= -lreadline
+
+MARKDOWN_CFLAGS:=
+MARKDOWN_LIBS:=-lmarkdown
+
 OUT=notescc
 
-CXXFLAGS=-std=c++11 -O0 -g3 -Wall -Iinclude/ $(LIB2_CFLAGS) -Wall -Wextra -I/usr/include/rhash/
+CXXFLAGS=-std=c++11 -O0 -g3 -Wall -Wextra\
+         -Iinclude/\
+         -Wno-missing-field-initializers\
+         $(LIB2_CFLAGS)\
+         $(READLINE_CFLAGS)\
+         $(MARKDOWN_CFLAGS)
+
+LDLIBS=$(LIB2_LIBS) $(READLINE_LIBS) $(MARKDOWN_LIBS) -lrhash
 
 all: $(OUT)
 
@@ -16,7 +29,7 @@ all: $(OUT)
 $(OBJECTS): $(HEADERS)
 
 $(OUT): $(OBJECTS)
-	$(CXX) -o $@ $^ -lrhash -lmarkdown $(LIB2_LIBS)
+	$(CXX) -o $@ $^ $(LDLIBS)
 
 clean:
 	rm -f $(OBJECTS) $(OUT)
