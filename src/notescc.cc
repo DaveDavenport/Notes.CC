@@ -222,9 +222,9 @@ public:
         git_reference_free(headref);
         git_changed =true;
 
-  //      git_index_free(git_repo_index);
-//        git_repository_index(&git_repo_index, git_repo);
-        git_index_read(git_repo_index, false);
+        //git_index_free(git_repo_index);
+        //git_repository_index(&git_repo_index, git_repo);
+        git_index_read(git_repo_index, true);
         size_t i, maxi = git_index_entrycount ( git_repo_index );
         for ( i = 0; i < maxi; i++ ) {
             const git_index_entry *entry = git_index_get_byindex ( git_repo_index, i );
@@ -290,6 +290,7 @@ public:
                                     NULL,
                                     "Edited note.\n",
                                     tree_cmt, entries, commits );
+                git_tree_free(tree_cmt);
             }
         }
         git_signature_free ( sign );
