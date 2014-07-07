@@ -13,8 +13,11 @@
 #include <Colors.h>
 #include <TableView.h>
 
-#include <rhash.h>
 #include <git2.h>
+
+// Readline
+#include <readline/readline.h>
+#include <readline/history.h>
 
 struct timespec _tick_start;
 struct timespec _tick_stop;
@@ -469,7 +472,11 @@ public:
             return iter;
         }
         iter++;
-        int nindex = std::stoi ( argv[0] );
+        int nindex = -1;
+        try {
+            nindex = std::stoi ( argv[0] );
+        } catch ( ... ) {
+        }
         if ( nindex < 1 || nindex > (int) notes.size () || notes[nindex - 1] == nullptr ) {
             fprintf ( stderr, "Invalid note id: %d\n", nindex );
             return iter;
@@ -559,7 +566,9 @@ public:
             if ( !pr_name.empty () ) {
                 // Validate the Project name only consists of characters and numbers.
                 if ( find_if ( pr_name.begin (), pr_name.end (),
-                               [] (char c) { return !( isalnum ( c ) ); } ) != pr_name.end () ) {
+                               [] ( char c ) {
+                                   return !( isalnum ( c ) );
+                               } ) != pr_name.end () ) {
                     fprintf ( stderr, "%s is an invalid Project name.\n", pr_name.c_str () );
                     return nullptr;
                 }
@@ -661,10 +670,43 @@ public:
 
         return 1;
     }
+    void interactive ()
+    {
+        using_history ();
+        do {
+            char *temp = readline ( "$ " );
+
+            if ( temp == nullptr ) {
+                break;
+            }
+            if ( strcasecmp ( temp, "quit" ) == 0 ) {
+                free ( temp );
+                break;
+            }
+            add_history ( temp );
+            // Split into arc, argv structure.
+            int  length     = strlen ( temp );
+            int  argc       = 0;
+            int  last_index = 0;
+            char **argv     = nullptr;
+            for ( int i = 0; i <= length; i++ ) {
+                if ( temp[i] == ' ' || temp[i] == '\0' ) {
+                    argv       = (char * *) realloc ( argv, sizeof ( char * ) * ( argc + 1 ) );
+                    argv[argc] = &temp[last_index];
+                    temp[i]    = '\0';
+                    argc++;
+                    last_index = i + 1;
+                }
+            }
+            this->run ( argc, argv );
+            free ( argv );
+            free ( temp );
+        } while ( true );
+    }
 
     void run ( int argc, char **argv )
     {
-        int index = 1;
+        int index = 0;
         while ( index < argc ) {
             if ( strcmp ( argv[index], "--complete" ) == 0 ) {
                 index++;
@@ -716,7 +758,7 @@ private:
             char                  *path = strdup ( entry->path );
             // Find filename.
             char                  *filename = nullptr;
-            for ( int iter = strlen ( path ); path[iter] != '/' && iter >= 0; iter-- ) {
+            for ( int iter = strlen ( path ) - 1; iter >= 0 && path[iter] != '/'; iter-- ) {
                 filename =
                     &path[iter];
             }
@@ -746,8 +788,6 @@ int main ( int argc, char ** argv )
     char *path = NULL;
     INIT_TIC_TAC ()
 
-    rhash_library_init ();
-
     if ( asprintf ( &path, "%s/Notes2/", getenv ( "HOME" ) ) == -1 ) {
         fprintf ( stderr, "Failed to get path\n" );
         return EXIT_FAILURE;
@@ -755,7 +795,12 @@ int main ( int argc, char ** argv )
     NotesCC *notes = new NotesCC ();
 
     if ( notes->open_repository ( path ) ) {
-        notes->run ( argc, argv );
+        if ( argc == 2 && strcmp ( argv[1], "interactive" ) == 0 ) {
+            notes->interactive ();
+        }
+        else {
+            notes->run ( argc - 1, &argv[1] );
+        }
     }
 
     free ( path );
