@@ -827,7 +827,6 @@ int main ( int argc, char ** argv )
     char *path        = NULL;
 
     INIT_TIC_TAC ()
-git_threads_init();
 
     if ( asprintf ( &path, "%s/Notes2/", getenv ( "HOME" ) ) == -1 ) {
         fprintf ( stderr, "Failed to get path\n" );
