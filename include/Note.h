@@ -80,6 +80,8 @@ public:
         }
         return this->project->get_relative_path () + "/" + this->filename;
     }
+    // Delete a note.
+    bool del ();
 private:
     void write_body ( FILE *fpout );
     void write_header ( FILE *header );

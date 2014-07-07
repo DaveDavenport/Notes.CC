@@ -157,6 +157,16 @@ public:
     {
     }
 
+    void repository_delete_file ( std::string path )
+    {
+        printf ( "Delete file: %s\n", path.c_str () );
+
+        int rc = git_index_remove_bypath ( git_repo_index, path.c_str () );
+        if ( rc != 0 ) {
+            fprintf ( stderr, "Failed add changes to index.\n" );
+        }
+        git_changed = true;
+    }
     void repository_stage_file ( std::string path )
     {
         printf ( "Staging file: %s\n", path.c_str () );
@@ -495,22 +505,20 @@ public:
         }
         // Split the string.
         size_t str_start = 0;
-        while(str_start < pr.size())
-        {
-            auto str_end = pr.find_first_of('.',str_start);
-            if( str_end == std::string::npos) {
-                str_end = pr.size();
+        while ( str_start < pr.size () ) {
+            auto str_end = pr.find_first_of ( '.', str_start );
+            if ( str_end == std::string::npos ) {
+                str_end = pr.size ();
             }
-            auto pr_name = pr.substr(str_start, str_end-str_start); 
-            if(!pr_name.empty()) {
+            auto pr_name = pr.substr ( str_start, str_end - str_start );
+            if ( !pr_name.empty () ) {
                 // Validate the Project name only consists of characters and numbers.
-                if (find_if(pr_name.begin(), pr_name.end(), 
-                            [](char c) { return !(isalnum(c)); }) != pr_name.end())
-                {
+                if ( find_if ( pr_name.begin (), pr_name.end (),
+                               [] (char c) { return !( isalnum ( c ) ); } ) != pr_name.end () ) {
                     fprintf ( stderr, "%s is an invalid Project name.\n", pr_name.c_str () );
                     return nullptr;
                 }
-                Project     *pc  = p->find_child ( pr_name );
+                Project *pc = p->find_child ( pr_name );
                 if ( pc == nullptr ) {
                     // Create!
                     pc = new Project ( pr_name.c_str () );
@@ -519,11 +527,41 @@ public:
                 p = pc;
             }
 
-            str_start = str_end+1;
+            str_start = str_end + 1;
         }
         return p;
     }
 
+    int command_delete ( int argc, char **argv )
+    {
+        int cargs = 0;
+        if ( argc <= 0 ) {
+            fprintf ( stderr, "view requires one argument\n" );
+            return cargs;
+        }
+
+        cargs++;
+        int nindex = std::stoi ( argv[0] );
+        if ( nindex < 1 || nindex > (int) notes.size () ) {
+            fprintf ( stderr, "Invalid note id: %d\n", nindex );
+            return cargs;
+        }
+        Note *note = notes[nindex - 1];
+        if ( note == nullptr ) {
+            fprintf ( stderr, "Note does not exists\n" );
+            return cargs;
+        }
+
+        // Delete the file from internal structure and working directory.
+        if ( note->del () ) {
+            // Tell git the file is removed.
+            repository_delete_file ( note->get_relative_path () );
+            // Delete the entry from the list.
+            delete note;
+            notes[nindex - 1] = nullptr;
+        }
+        return cargs;
+    }
     int command_add ( int argc, char **argv )
     {
         int     retv = 0;
@@ -603,6 +641,10 @@ public:
                 index++;
                 index += this->command_add ( argc - index, &argv[index] );
             }
+            else if ( strcmp ( argv[index], "delete" ) == 0 ) {
+                index++;
+                index += this->command_delete ( argc - index, &argv[index] );
+            }
             else if ( strcmp ( argv[index], "projects" ) == 0 ) {
                 index++;
                 index += this->command_projects ( argc - index, &argv[index] );
@@ -661,7 +703,7 @@ int main ( int argc, char ** argv )
         fprintf ( stderr, "Failed to get path\n" );
         return EXIT_FAILURE;
     }
-    NotesCC *notes = new NotesCC();
+    NotesCC *notes = new NotesCC ();
 
     if ( notes->open_repository ( path ) ) {
         notes->run ( argc, argv );

@@ -39,6 +39,7 @@ public:
     void add_subproject ( Project *child );
 
     void add_note ( Note *note );
+    void remove_note ( Note *note );
 
     void print ();
 

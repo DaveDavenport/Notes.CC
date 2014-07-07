@@ -408,3 +408,14 @@ bool Note::edit ()
     fclose ( fp );
     return changed;
 }
+// Delete note.
+bool Note::del ()
+{
+    std::string fpath = project->get_path () + "/" + filename;
+    if ( remove ( fpath.c_str () ) == 0 ) {
+        this->project->remove_note ( this );
+        return true;
+    }
+    fprintf ( stderr, "Failed to delete note: %s\n", strerror ( errno ) );
+    return false;
+}

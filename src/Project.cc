@@ -130,3 +130,7 @@ bool Project::check_and_create_path ()
     }
     return true;
 }
+void Project::remove_note ( Note *note )
+{
+    this->notes.remove ( note );
+}
