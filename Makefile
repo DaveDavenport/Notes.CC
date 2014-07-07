@@ -2,8 +2,13 @@ CXX=g++
 SOURCES=$(wildcard src/*.cc)
 HEADERS=$(wildcard include/*.h)
 OBJECTS=$(SOURCES:%.cc=%.o)
+
+LIB2_CFLAGS:=$(shell pkg-config --cflags libgit2)
+LIB2_LIBS:=$(shell pkg-config --libs libgit2)
+
 OUT=notescc
-CXXFLAGS=-std=c++11 -O0 -g3 -Wall -Iinclude/ -I/usr/include/ -Wall -Wextra -I/home/mkoedam/.local/include/ -I/usr/include/rhash/
+
+CXXFLAGS=-std=c++11 -O0 -g3 -Wall -Iinclude/ $(LIB2_CFLAGS) -Wall -Wextra -I/usr/include/rhash/
 
 all: $(OUT)
 
@@ -11,7 +16,7 @@ all: $(OUT)
 $(OBJECTS): $(HEADERS)
 
 $(OUT): $(OBJECTS)
-	$(CXX) -o $@ $^ -lrhash -lmarkdown -L/home/mkoedam/.local/lib/ -lgit2
+	$(CXX) -o $@ $^ -lrhash -lmarkdown $(LIB2_LIBS)
 
 clean:
 	rm -f $(OBJECTS) $(OUT)
