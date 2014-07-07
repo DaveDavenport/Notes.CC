@@ -3,6 +3,12 @@ SOURCES=$(wildcard src/*.cc)
 HEADERS=$(wildcard include/*.h)
 OBJECTS=$(SOURCES:%.cc=%.o)
 
+PREFIX=~/.local/
+
+##
+# Dependencies
+##
+
 LIB2_CFLAGS:=$(shell pkg-config --cflags libgit2)
 LIB2_LIBS:=$(shell pkg-config --libs libgit2)
 
@@ -35,3 +41,8 @@ clean:
 
 indent:
 	uncrustify --replace -c data/uncrustify.cfg $(SOURCES) $(HEADERS)
+
+$(PREFIX)/bin/$(OUT): $(OUT)
+	cp $^ $@
+
+install: ${PREFIX}/bin/$(OUT)
