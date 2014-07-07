@@ -7,7 +7,6 @@
 #include <string>
 #include <cstring>
 #include <list>
-#include <regex>
 
 #include <Project.h>
 #include <Note.h>
@@ -158,7 +157,7 @@ public:
     {
     }
 
-    bool repository_stage_file ( std::string path )
+    void repository_stage_file ( std::string path )
     {
         printf ( "Staging file: %s\n", path.c_str () );
 
@@ -494,29 +493,33 @@ public:
         if ( pr.empty () ) {
             return p;
         }
-        // Validate the string.
-        if ( !std::regex_match ( pr, std::regex ( "([a-zA-Z0-9]+.)*[a-zA-Z0-9]+" ) ) ) {
-            fprintf ( stderr, "%s is an invalid Project name.\n", pr.c_str () );
-            return nullptr;
-        }
-
-        // Split the project and find/create the Right Project node.
-        std::smatch m;
-        std::regex  e ( "[a-zA-Z0-9]+" );
-
-        // Match name, find project, then skip to next name.
-        while ( std::regex_search ( pr, m, e ) ) {
-            if ( m.begin () != m.end () ) {
-                std::string name = *( m.begin () );
-                Project     *pc  = p->find_child ( name );
+        // Split the string.
+        size_t str_start = 0;
+        while(str_start < pr.size())
+        {
+            auto str_end = pr.find_first_of('.',str_start);
+            if( str_end == std::string::npos) {
+                str_end = pr.size();
+            }
+            auto pr_name = pr.substr(str_start, str_end-str_start); 
+            if(!pr_name.empty()) {
+                // Validate the Project name only consists of characters and numbers.
+                if (find_if(pr_name.begin(), pr_name.end(), 
+                            [](char c) { return !(isalnum(c)); }) != pr_name.end())
+                {
+                    fprintf ( stderr, "%s is an invalid Project name.\n", pr_name.c_str () );
+                    return nullptr;
+                }
+                Project     *pc  = p->find_child ( pr_name );
                 if ( pc == nullptr ) {
                     // Create!
-                    pc = new Project ( name.c_str () );
+                    pc = new Project ( pr_name.c_str () );
                     p->add_subproject ( pc );
                 }
                 p = pc;
             }
-            pr = m.suffix ().str ();
+
+            str_start = str_end+1;
         }
         return p;
     }
@@ -658,12 +661,15 @@ int main ( int argc, char ** argv )
         fprintf ( stderr, "Failed to get path\n" );
         return EXIT_FAILURE;
     }
-    NotesCC notes;
+    NotesCC *notes = new NotesCC();
 
-    if ( notes.open_repository ( path ) ) {
-        notes.run ( argc, argv );
+    if ( notes->open_repository ( path ) ) {
+        notes->run ( argc, argv );
     }
+
     free ( path );
+    delete notes;
+
     if ( argc < 2 || strcasecmp ( argv[1], "--complete" ) ) {
         TIC ( "finish" );
     }
