@@ -4,17 +4,17 @@
 #include <basedir.h>
 
 class Settings {
-    xdgHandle    xdg_handle;
+xdgHandle xdg_handle;
 
 public:
     static const char dir_separator = '/';
     Settings();
     ~Settings();
 
-    const std::string &get_repository();
+    const std::string &get_repository ();
 
 private:
     std::string repo_path;
-} ;
+};
 
 #endif

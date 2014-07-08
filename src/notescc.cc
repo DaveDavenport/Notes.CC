@@ -35,7 +35,7 @@ struct timespec _tick_stop;
             diff.tv_sec  -= 1;                                                 \
             diff.tv_nsec += 1e9;                                               \
         }                                                                      \
-        printf ( "%s: %lu s, %.2f ms\n", a, diff.tv_sec, diff.tv_nsec / 1e6 ); \
+        notes_info ( "%s: %lu s, %.2f ms\n", a, diff.tv_sec, diff.tv_nsec / 1e6 ); \
 }
 
 
@@ -141,7 +141,7 @@ public:
     }
 
 
-    NotesCC(Settings *settings )  : Project ( "" ), settings(settings)
+    NotesCC( Settings *settings )  : Project ( "" ), settings ( settings )
     {
     }
 
@@ -253,7 +253,7 @@ public:
 
         // Check open changes.
         git_status_list    *gsl = nullptr;
-        git_status_options opts;
+        git_status_options opts = GIT_STATUS_OPTIONS_INIT;
         opts.version = GIT_STATUS_OPTIONS_VERSION;
         opts.show    = GIT_STATUS_SHOW_WORKDIR_ONLY;
         opts.flags   = GIT_STATUS_OPT_INCLUDE_UNTRACKED;
@@ -291,11 +291,11 @@ public:
      */
     bool open_repository ( )
     {
-        const char *db_path = settings->get_repository().c_str();
+        const char *db_path = settings->get_repository ().c_str ();
         // Check git repository.
         if ( git_repository_open ( &git_repo, db_path ) != 0 ) {
             notes_error ( "The repository directory '%s' is not a git repository.\n",
-                    db_path );
+                          db_path );
             notes_error ( "Please initialize a new repository using git init.\n" );
             return false;
         }
@@ -347,7 +347,7 @@ public:
 
     std::string get_path ()
     {
-        return settings->get_repository();
+        return settings->get_repository ();
     }
 
     std::string get_relative_path ()
@@ -829,12 +829,12 @@ int main ( int argc, char ** argv )
     bool autocomplete = false;
 
     INIT_TIC_TAC ()
-    git_threads_init();
+    git_threads_init ();
 
-    // Open settings manager. 
+    // Open settings manager.
     Settings settings;
 
-    NotesCC *notes = new NotesCC (&settings);
+    NotesCC  *notes = new NotesCC ( &settings );
 
     // Open repository
     if ( notes->open_repository ( ) ) {
@@ -859,7 +859,7 @@ int main ( int argc, char ** argv )
     delete notes;
 
     if ( !autocomplete ) {
-        TIC ( "finish" );
+        TIC ( "Total runtime: " );
     }
     return EXIT_SUCCESS;
 }
