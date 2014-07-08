@@ -21,6 +21,9 @@
 #define  color_magenta_bold    "\e[1;35m"
 #define  color_cyan_bold       "\e[1;36m"
 
-void notes_error ( const char *format, ... );
-void notes_info  ( const char *format, ... );
+void notes_print_error   ( const char *format, ... );
+void notes_print_info    ( const char *format, ... );
+void notes_print_warning ( const char *format, ... );
+
+void notes_print_quiet ();
 #endif

@@ -2,6 +2,7 @@
 #define __NOTE_H__
 #define _XOPEN_SOURCE    700
 #include <time.h>
+#include <list>
 
 // Forward declaration.
 class Project;

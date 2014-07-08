@@ -12,6 +12,7 @@
 #include <Note.h>
 #include <Colors.h>
 #include <TableView.h>
+#include <Filter.h>
 
 #include <git2.h>
 
@@ -35,7 +36,7 @@ struct timespec _tick_stop;
             diff.tv_sec  -= 1;                                                     \
             diff.tv_nsec += 1e9;                                                   \
         }                                                                          \
-        notes_info ( "%s: %lu s, %.2f ms\n", a, diff.tv_sec, diff.tv_nsec / 1e6 ); \
+        notes_print_info ( "%s: %lu s, %.2f ms\n", a, diff.tv_sec, diff.tv_nsec / 1e6 ); \
 }
 
 
@@ -61,48 +62,6 @@ const char * commands[] =
  * Classes, list, strings are ok.. Templates are already doubtful.
  */
 
-class NotesFilter
-{
-private:
-    std::vector<Note *> start_notes;
-public:
-    NotesFilter( std::vector< Note *> notes )
-    {
-        // Copy the list!
-        start_notes = notes;
-    }
-
-    void add_filter ( std::string value )
-    {
-        for ( auto iter = start_notes.begin (); iter != start_notes.end (); iter++ ) {
-            Note *note = *iter;
-
-            // Skip empty elements.
-            if ( note == nullptr ) {
-                continue;
-            }
-
-            bool remove = true;
-
-            if ( note->get_title ().rfind ( value ) != std::string::npos ) {
-                remove = false;
-            }
-            if ( remove && note->get_project_name ().rfind ( value ) != std::string::npos ) {
-                remove =
-                    false;
-            }
-
-            if ( remove ) {
-                *iter = nullptr;
-            }
-        }
-    }
-
-    const std::vector<Note *> &get_filtered_notes () const
-    {
-        return start_notes;
-    }
-};
 
 
 // The Main object, this is also the root node.
@@ -124,7 +83,7 @@ public:
      * This function is used to sort the notes and assign them an id.
      * Sorting should be stable between runs (when there is no edit of note).
      */
-    static bool notes_sort ( Note *a, Note *b )
+    static bool notes_print_sort ( Note *a, Note *b )
     {
         time_t diff_time = ( a->get_time_t () - b->get_time_t () );
         // If they are of equal time.
@@ -166,21 +125,21 @@ public:
 
     void repository_delete_file ( std::string path )
     {
-        printf ( "Delete file: %s\n", path.c_str () );
+        notes_print_info ( "Delete file: %s\n", path.c_str () );
 
         int rc = git_index_remove_bypath ( git_repo_index, path.c_str () );
         if ( rc != 0 ) {
-            fprintf ( stderr, "Failed add changes to index.\n" );
+            notes_print_error ( "Failed add changes to index.\n" );
         }
         git_changed = true;
     }
     void repository_stage_file ( std::string path )
     {
-        printf ( "Staging file: %s\n", path.c_str () );
+        notes_print_info ( "Staging file: %s\n", path.c_str () );
 
         int rc = git_index_add_bypath ( git_repo_index, path.c_str () );
         if ( rc != 0 ) {
-            fprintf ( stderr, "Failed add changes to index.\n" );
+            notes_print_error ( "Failed add changes to index.\n" );
         }
         git_changed = true;
     }
@@ -229,7 +188,7 @@ public:
 
         rc = git_index_write ( git_repo_index );
         if ( rc != 0 ) {
-            fprintf ( stderr, "Failed to write index to disc.\n" );
+            notes_print_error ( "Failed to write index to disc.\n" );
             return false;
         }
 
@@ -241,13 +200,13 @@ public:
         // Check if it is in a sane state.
         int state = git_repository_state ( git_repo );
         if ( state != GIT_REPOSITORY_STATE_NONE ) {
-            notes_error ( "The repository is not in a clean state.\n" );
-            notes_error ( "Please resolve any outstanding issues first.\n" );
+            notes_print_error ( "The repository is not in a clean state.\n" );
+            notes_print_error ( "Please resolve any outstanding issues first.\n" );
             return false;
         }
         // Check bare directory
         if ( git_repository_is_bare ( git_repo ) ) {
-            fprintf ( stderr, "Bare repositories are not supported.\n" );
+            notes_print_error ( "Bare repositories are not supported.\n" );
             return false;
         }
 
@@ -255,32 +214,38 @@ public:
         git_status_list    *gsl = nullptr;
         git_status_options opts = GIT_STATUS_OPTIONS_INIT;
         opts.version = GIT_STATUS_OPTIONS_VERSION;
-        opts.show    = GIT_STATUS_SHOW_WORKDIR_ONLY;
+        opts.show    = GIT_STATUS_SHOW_INDEX_AND_WORKDIR;
         opts.flags   = GIT_STATUS_OPT_INCLUDE_UNTRACKED;
 
         if ( git_status_list_new ( &gsl, git_repo, &opts ) != 0 ) {
-            fprintf ( stderr, "Failed to get repository status.\n" );
+            notes_print_error ( "Failed to get repository status.\n" );
             return false;
         }
 
         size_t i, maxi = git_status_list_entrycount ( gsl );
         bool   clean = true;
+        int mask = 0;
         for ( i = 0; i < maxi; i++ ) {
             const git_status_entry *s = git_status_byindex ( gsl, i );
             if ( s->status != GIT_STATUS_CURRENT ) {
                 clean = false;
+                mask |= s->status;
             }
         }
         git_status_list_free ( gsl );
 
         if ( !clean ) {
-            fprintf ( stderr, "The git repository is not clean, there are changes in the local \n" );
-            fprintf ( stderr, "work directory. Please commit these first.\n" );
-            return false;
+            if((mask&GIT_STATUS_WT_NEW) == GIT_STATUS_WT_NEW ) {
+                notes_print_warning ( "There are untracked files in your repository\n");
+            } else {
+                notes_print_error ( "There are modified files in your repository\n");
+                notes_print_error ( "Please fix these and commit the changes\n");
+                return false;
+            }
         }
 
         if ( git_repository_index ( &git_repo_index, git_repo ) != 0 ) {
-            fprintf ( stderr, "Failed to read index from disc.\n" );
+            notes_print_error ( "Failed to read index from disc.\n" );
             return false;
         }
         return true;
@@ -294,9 +259,9 @@ public:
         const char *db_path = settings->get_repository ().c_str ();
         // Check git repository.
         if ( git_repository_open ( &git_repo, db_path ) != 0 ) {
-            notes_error ( "The repository directory '%s' is not a git repository.\n",
+            notes_print_error ( "The repository directory '%s' is not a git repository.\n",
                           db_path );
-            notes_error ( "Please initialize a new repository using git init.\n" );
+            notes_print_error ( "Please initialize a new repository using git init.\n" );
             return false;
         }
         if ( !this->check_repository_state () ) {
@@ -307,7 +272,7 @@ public:
         this->Load ( );
 
         // Sort the notes.
-        std::sort ( this->notes.begin (), this->notes.end (), notes_sort );
+        std::sort ( this->notes.begin (), this->notes.end (), notes_print_sort );
 
         // Gives them UIDs.
         for ( auto note : this->notes ) {
@@ -320,7 +285,7 @@ public:
     ~NotesCC()
     {
         if ( git_changed ) {
-            printf ( "Commiting changes to git.\n" );
+            notes_print_info ( "Commiting changes to git.\n" );
             repository_commit_changes ();
         }
 
@@ -403,14 +368,14 @@ public:
         // TODO: abstract this in a 'get note'
         int cargs = 0;
         if ( argc <= 0 ) {
-            fprintf ( stderr, "edit requires one argument\n" );
+            notes_print_error ( "edit requires one argument\n" );
             return cargs;
         }
 
         cargs++;
         int nindex = std::stoi ( argv[0] );
         if ( nindex < 1 || nindex > (int) notes.size () || notes[nindex - 1] == nullptr ) {
-            fprintf ( stderr, "Invalid note id: %d\n", nindex );
+            notes_print_error ( "Invalid note id: %d\n", nindex );
             return cargs;
         }
         Note *note = notes[nindex - 1];
@@ -439,14 +404,14 @@ public:
         // Note *note = this->get_note (argc[in], argv[in], cargs[out]);
         int cargs = 0;
         if ( argc <= 0 ) {
-            fprintf ( stderr, "view requires one argument\n" );
+            notes_print_error ( "view requires one argument\n" );
             return cargs;
         }
 
         cargs++;
         int nindex = std::stoi ( argv[0] );
         if ( nindex < 1 || nindex > (int) notes.size () || notes[nindex - 1] == nullptr ) {
-            fprintf ( stderr, "Invalid note id: %d\n", nindex );
+            notes_print_error ( "Invalid note id: %d\n", nindex );
             return cargs;
         }
         Note *note = notes[nindex - 1];
@@ -481,7 +446,7 @@ public:
     {
         int iter = 0;
         if ( argc < 2 ) {
-            fprintf ( stderr, "Move requires two arguments: <note id>  <project path>\n" );
+            notes_print_error ( "Move requires two arguments: <note id>  <project path>\n" );
             return iter;
         }
         iter++;
@@ -491,7 +456,7 @@ public:
         } catch ( ... ) {
         }
         if ( nindex < 1 || nindex > (int) notes.size () || notes[nindex - 1] == nullptr ) {
-            fprintf ( stderr, "Invalid note id: %d\n", nindex );
+            notes_print_error ( "Invalid note id: %d\n", nindex );
             return iter;
         }
         Note *note = notes[nindex - 1];
@@ -503,7 +468,7 @@ public:
             return iter;
         }
         if ( p == note->get_project () ) {
-            printf ( "Destination same as source.\n" );
+            notes_print_warning ( "Destination same as source: Ignoring.\n" );
             return iter;
         }
         std::string old_path = note->get_relative_path ();
@@ -582,7 +547,7 @@ public:
                                [] ( char c ) {
                                    return !( isalnum ( c ) );
                                } ) != pr_name.end () ) {
-                    fprintf ( stderr, "%s is an invalid Project name.\n", pr_name.c_str () );
+                    notes_print_error ( "%s is an invalid Project name.\n", pr_name.c_str () );
                     return nullptr;
                 }
                 Project *pc = p->find_child ( pr_name );
@@ -603,19 +568,19 @@ public:
     {
         int cargs = 0;
         if ( argc <= 0 ) {
-            fprintf ( stderr, "view requires one argument\n" );
+            notes_print_error ( "view requires one argument\n" );
             return cargs;
         }
 
         cargs++;
         int nindex = std::stoi ( argv[0] );
         if ( nindex < 1 || nindex > (int) notes.size () ) {
-            fprintf ( stderr, "Invalid note id: %d\n", nindex );
+            notes_print_error ( "Invalid note id: %d\n", nindex );
             return cargs;
         }
         Note *note = notes[nindex - 1];
         if ( note == nullptr ) {
-            fprintf ( stderr, "Note does not exists\n" );
+            notes_print_error ( "Note does not exists\n" );
             return cargs;
         }
 
@@ -641,7 +606,7 @@ public:
 
         // Check if we have project successful.
         if ( p == nullptr ) {
-            fprintf ( stderr, "Failed to find or create the project.\n" );
+            notes_print_error ( "Failed to find or create the project.\n" );
             return retv;
         }
 
@@ -739,7 +704,7 @@ public:
             }
 
             // Run parser.
-            this->run ( argc, argv );
+            this->cmd_parser ( argc, argv );
 
             // Free
             free ( argv );
@@ -747,7 +712,7 @@ public:
         } while ( true );
     }
 
-    void run ( int argc, char **argv )
+    void cmd_parser ( int argc, char **argv )
     {
         int index = 0;
         while ( index < argc ) {
@@ -780,13 +745,33 @@ public:
                 index += this->command_projects ( argc - index, &argv[index] );
             }
             else {
-                fprintf ( stderr, "Invalid argument: '%s'\n", argv[index] );
+                notes_print_error ( "Invalid argument: '%s'\n", argv[index] );
                 return;
             }
         }
         if ( argc == 0 ) {
             this->command_list ( 0, NULL );
         }
+    }
+    void run ( int argc, char **argv )
+    {
+        // Check interactive mode.
+        if ( argc == 2 && strcmp ( argv[1], "interactive" ) == 0 ) {
+            notes_print_info ("Interactive mode\n");
+            interactive ();
+        }
+
+        // Check autocomplete.
+        else if ( argc > 1 && strcmp ( argv[1], "--complete" ) == 0 ) {
+            notes_print_quiet();
+            run_autocomplete ( argc - 1, &argv[1] );
+        }
+
+        // Commandline parser
+        else {
+            cmd_parser ( argc - 1, &argv[1] );
+        }
+
     }
 
 private:
@@ -827,8 +812,6 @@ private:
 
 int main ( int argc, char ** argv )
 {
-    bool autocomplete = false;
-
     INIT_TIC_TAC ()
     git_threads_init ();
 
@@ -840,27 +823,11 @@ int main ( int argc, char ** argv )
     // Open repository
     if ( notes->open_repository ( ) ) {
         // TODO: move this.
-        // Check interactive mode.
-        if ( argc == 2 && strcmp ( argv[1], "interactive" ) == 0 ) {
-            notes->interactive ();
-        }
-
-        // Check autocomplete.
-        else if ( argc > 1 && strcmp ( argv[1], "--complete" ) == 0 ) {
-            autocomplete = true;
-            notes->run_autocomplete ( argc - 1, &argv[1] );
-        }
-
-        // Commandline parser
-        else {
-            notes->run ( argc - 1, &argv[1] );
-        }
+        notes->run(argc, argv);
     }
 
     delete notes;
 
-    if ( !autocomplete ) {
-        TIC ( "Total runtime: " );
-    }
+    TIC ( "Total runtime: " );
     return EXIT_SUCCESS;
 }
