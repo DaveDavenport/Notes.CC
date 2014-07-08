@@ -75,10 +75,10 @@ private:
     git_repository      *git_repo        = nullptr;
     git_index           * git_repo_index = nullptr;
     bool                git_changed      = false;
-    Settings            *settings        = nullptr;
+    Settings            settings;
 
 public:
-    NotesCC( Settings *settings )  : Project ( "" ), settings ( settings )
+    NotesCC( )  : Project ( "" )
     {
     }
     ~NotesCC()
@@ -110,7 +110,7 @@ public:
      */
     bool open_repository ( )
     {
-        const char *db_path = settings->get_repository ().c_str ();
+        const char *db_path = settings.get_repository ().c_str ();
         // Check git repository.
         if ( git_repository_open ( &git_repo, db_path ) != 0 ) {
             notes_print_error ( "The repository directory '%s' is not a git repository.\n",
@@ -343,7 +343,7 @@ private:
 
     std::string get_path ()
     {
-        return settings->get_repository ();
+        return settings.get_repository ();
     }
 
     std::string get_relative_path ()
@@ -670,7 +670,7 @@ private:
             return retv;
         }
 
-        Note *n = new Note ( p );
+        Note *n = new Note ( p, &settings );
 
         if ( n != nullptr ) {
             this->notes.push_back ( n );
@@ -840,7 +840,7 @@ private:
                 p = this->get_or_create_project_from_name ( path );
             }
 
-            Note *note = new Note ( p, filename );
+            Note *note = new Note ( p, &settings, filename );
             // Add to the flat list in the main.
             this->notes.push_back ( note );
             free ( path );
@@ -853,10 +853,7 @@ int main ( int argc, char ** argv )
 {
     INIT_TIC_TAC ()
 
-    // Open settings manager.
-    Settings settings;
-
-    NotesCC *notes = new NotesCC ( &settings );
+    NotesCC * notes = new NotesCC ( );
 
     // Open repository
     if ( notes->open_repository ( ) ) {

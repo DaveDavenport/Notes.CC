@@ -6,6 +6,7 @@
 
 // Forward declaration.
 class Project;
+class Settings;
 
 /**
  * Class representing a note.
@@ -18,7 +19,8 @@ class Project;
 class Note
 {
 private:
-    Project     *project = nullptr;
+    Project     *project  = nullptr;
+    Settings    *settings = nullptr;
     std::string filename;
 
 // Note properties
@@ -30,8 +32,8 @@ private:
     uint32_t      hash = 0;
 
 public:
-    Note( Project *project, const char *filename );
-    Note ( Project *p );
+    Note( Project *project, Settings *settings, const char *filename );
+    Note ( Project *p, Settings *settings );
 
     void print ();
 

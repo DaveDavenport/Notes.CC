@@ -16,6 +16,10 @@
 #include <Project.h>
 #include <Note.h>
 
+#include <settings.h>
+
+#include <Colors.h>
+
 extern "C" {
 #include <mkdio.h>
 }
@@ -88,8 +92,8 @@ uint32_t updateCRC32 ( unsigned char ch, uint32_t crc )
 /**
  * Notes implementation code.
  */
-Note::Note( Project *project, const char *filename ) :
-    project ( project ), filename ( filename )
+Note::Note( Project *project, Settings *settings, const char *filename ) :
+    project ( project ), settings ( settings ), filename ( filename )
 {
     std::string fpath = project->get_path () + "/" + filename;
 
@@ -121,7 +125,7 @@ Note::Note( Project *project, const char *filename ) :
                 sep[strlen ( sep )] = '\0';
                 char *retv = strptime ( sep + 1, "%a %b %d %T %z %Y", &( this->last_edit_time ) );
                 if ( retv == nullptr ) {
-                    fprintf ( stderr, "Failed to parse date: |%s|\n", sep + 2 );
+                    notes_print_error ( "Failed to parse date: |%s|\n", sep + 2 );
                 }
             }
         }
@@ -156,11 +160,11 @@ static bool file_not_exists ( const std::string &filename )
     return false;
 }
 
-Note::Note ( Project *p ) :
-    project ( p )
+Note::Note ( Project *p, Settings *settings ) :
+    project ( p ), settings ( settings )
 {
     if ( !p->check_and_create_path ()  ) {
-        fprintf ( stderr, "Failed to create Project path.\n" );
+        notes_print_error ( "Failed to create Project path.\n" );
         abort ();
     }
 
@@ -182,7 +186,7 @@ Note::Note ( Project *p ) :
     std::string fpath      = project->get_path () + "/" + filename;
     FILE        *orig_file = fopen ( fpath.c_str (), "w" );
     if ( orig_file == nullptr ) {
-        fprintf ( stderr, "Failed to open note for writing: %s\n", strerror ( errno ) );
+        notes_print_error ( "Failed to open note for writing: %s\n", strerror ( errno ) );
         abort ();
     }
     this->write_header ( orig_file );
@@ -281,13 +285,13 @@ void Note::view ()
     std::string fpath = project->get_path () + "/" + filename;
     char        *path;
     if ( asprintf ( &path, "/tmp/notecc-%u.xhtml", this->hash ) <= 0 ) {
-        fprintf ( stderr, "Failed to create note tmp path\n" );
+        notes_print_error ( "Failed to create note tmp path\n" );
         return;
     }
 
     FILE *fp = fopen ( fpath.c_str (), "r" );
     if ( fp == nullptr ) {
-        fprintf ( stderr, "Failed to open note: %s\n", fpath.c_str () );
+        notes_print_error ( "Failed to open note: %s\n", fpath.c_str () );
         free ( path );
         return;
     }
@@ -307,7 +311,7 @@ void Note::view ()
 
     fp = fopen ( path, "w" );
     if ( fp == nullptr ) {
-        fprintf ( stderr, "Failed to open tmp file: %s %s\n", path, strerror ( errno ) );
+        notes_print_error ( "Failed to open tmp file: %s %s\n", path, strerror ( errno ) );
         free ( path );
         mkd_cleanup ( doc );
         return;
@@ -332,7 +336,7 @@ void Note::write_body ( FILE *fpout )
     std::string fpath = project->get_path () + "/" + filename;
     FILE        *fp   = fopen ( fpath.c_str (), "r" );
     if ( fp == nullptr ) {
-        fprintf ( stderr, "Failed to open note: %s\n", fpath.c_str () );
+        notes_print_error ( "Failed to open note: %s\n", fpath.c_str () );
         return;
     }
 
@@ -380,14 +384,14 @@ bool Note::edit ()
     // This is used to store the edited note.
     char *path;
     if ( asprintf ( &path, "/tmp/notecc-%u.md", this->hash ) <= 0 ) {
-        fprintf ( stderr, "Failed to create note tmp path\n" );
+        notes_print_error ( "Failed to create note tmp path\n" );
         return false;
     }
 
     // Open the temp file and write the body of the note.
     FILE *fp = fopen ( path, "w" );
     if ( fp == nullptr ) {
-        fprintf ( stderr, "Failed to open temp path: %s\n", path );
+        notes_print_error ( "Failed to open temp path: %s\n", path );
         free ( path );
         return false;
     }
@@ -397,18 +401,17 @@ bool Note::edit ()
 
     // Execute editor
     char *command;
-    if ( asprintf ( &command, "${EDITOR} %s", path ) > 0 ) {
+    if ( asprintf ( &command, "%s %s", settings->get_editor ().c_str (), path ) > 0 ) {
         pid_t pid = exec_cmd ( command );
         // Wait till client is done.
         waitpid ( pid, NULL, 0 );
-        printf ( "done: %d \n", pid );
         free ( command );
     }
 
     // Re-open edited note.
     fp = fopen ( path, "r" );
     if ( fp == nullptr ) {
-        fprintf ( stderr, "Failed to open temp path: %s\n", path );
+        notes_print_error ( "Failed to open temp path: %s\n", path );
         free ( path );
         return false;
     }
@@ -417,8 +420,8 @@ bool Note::edit ()
 
     if ( new_hash != this->hash ) {
         std::string fpath = project->get_path () + "/" + filename;
-        printf ( "Note has been changed\n" );
-        printf ( "Saving note: %s\n", fpath.c_str () );
+        notes_print_info ( "Note has been changed\n" );
+        notes_print_info ( "Saving note: %s\n", fpath.c_str () );
         // Increment revision number. (TODO: get from git?)
         this->revision++;
         // Update last edited time.
@@ -428,8 +431,8 @@ bool Note::edit ()
 
         FILE *orig_file = fopen ( fpath.c_str (), "w" );
         if ( orig_file == nullptr ) {
-            fprintf ( stderr, "Failed to open original note for writing: %s\n", strerror ( errno ) );
-            fprintf ( stderr, "Not saving note, you can find edit here: %s.\n", path );
+            notes_print_error ( "Failed to open original note for writing: %s\n", strerror ( errno ) );
+            notes_print_error ( "Not saving note, you can find edit here: %s.\n", path );
             free ( path );
             fclose ( fp );
             return false;
@@ -452,11 +455,11 @@ bool Note::edit ()
 
         fclose ( orig_file );
 
-        printf ( "Note successfully edited.\n" );
+        notes_print_info ( "Note successfully edited.\n" );
         changed = true;
     }
     else {
-        printf ( "Note unchanged, doing nothing.\n" );
+        notes_print_info ( "Note unchanged, doing nothing.\n" );
     }
 
     free ( path );
@@ -471,14 +474,14 @@ bool Note::del ()
         this->project->remove_note ( this );
         return true;
     }
-    fprintf ( stderr, "Failed to delete note: %s\n", strerror ( errno ) );
+    notes_print_error ( "Failed to delete note: %s\n", strerror ( errno ) );
     return false;
 }
 
 bool Note::move ( Project *p )
 {
     if ( !p->check_and_create_path ()  ) {
-        fprintf ( stderr, "Failed to create Project path.\n" );
+        notes_print_error ( "Failed to create Project path.\n" );
         return false;
     }
     std::string old_path = project->get_path () + "/" + filename;
@@ -489,8 +492,8 @@ bool Note::move ( Project *p )
     this->project->add_note ( this );
     std::string new_path = project->get_path () + "/" + filename;
     if ( rename ( old_path.c_str (), new_path.c_str () ) ) {
-        fprintf ( stderr, "Failed to move note: %s to %s\nError: %s\n",
-                  old_path.c_str (), new_path.c_str (), strerror ( errno ) );
+        notes_print_error ( "Failed to move note: %s to %s\nError: %s\n",
+                            old_path.c_str (), new_path.c_str (), strerror ( errno ) );
         return false;
     }
     return true;

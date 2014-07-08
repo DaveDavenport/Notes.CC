@@ -12,9 +12,11 @@ public:
     ~Settings();
 
     const std::string &get_repository ();
+    const std::string &get_editor ();
 
 private:
     std::string repo_path;
+    std::string editor;
 };
 
 #endif

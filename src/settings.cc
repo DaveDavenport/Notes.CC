@@ -31,3 +31,20 @@ const std::string &Settings::get_repository ()
 
     return repo_path;
 }
+
+const std::string &Settings::get_editor ()
+{
+    if ( editor.empty () ) {
+        if ( getenv ( "EDITOR" ) != nullptr ) {
+            editor = getenv ( "EDITOR" );
+            if ( !editor.empty () ) {
+                return editor;
+            }
+        }
+
+        // Fallback.
+        editor = "vim";
+    }
+
+    return editor;
+}
