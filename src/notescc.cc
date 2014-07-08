@@ -26,15 +26,15 @@ struct timespec _tick_stop;
 
 #define INIT_TIC_TAC()    { clock_gettime ( CLOCK_REALTIME, &_tick_start ); }
 
-#define TIC( a )          {                                                    \
-        clock_gettime ( CLOCK_REALTIME, &_tick_stop );                         \
-        timespec diff;                                                         \
-        diff.tv_sec  = _tick_stop.tv_sec - _tick_start.tv_sec;                 \
-        diff.tv_nsec = _tick_stop.tv_nsec - _tick_start.tv_nsec;               \
-        if ( diff.tv_nsec < 0 ) {                                              \
-            diff.tv_sec  -= 1;                                                 \
-            diff.tv_nsec += 1e9;                                               \
-        }                                                                      \
+#define TIC( a )          {                                                        \
+        clock_gettime ( CLOCK_REALTIME, &_tick_stop );                             \
+        timespec diff;                                                             \
+        diff.tv_sec  = _tick_stop.tv_sec - _tick_start.tv_sec;                     \
+        diff.tv_nsec = _tick_stop.tv_nsec - _tick_start.tv_nsec;                   \
+        if ( diff.tv_nsec < 0 ) {                                                  \
+            diff.tv_sec  -= 1;                                                     \
+            diff.tv_nsec += 1e9;                                                   \
+        }                                                                          \
         notes_info ( "%s: %lu s, %.2f ms\n", a, diff.tv_sec, diff.tv_nsec / 1e6 ); \
 }
 
@@ -649,6 +649,7 @@ public:
 
         if ( n != nullptr ) {
             this->notes.push_back ( n );
+            n->set_id ( this->notes.size () );
             n->edit ();
             // Commit the result.
             auto path = n->get_relative_path ();

@@ -72,7 +72,7 @@ void TableView::add_column ( std::string name, const char *color )
 
 void TableView::print ()
 {
-    fputc('\n', stdout);
+    fputc ( '\n', stdout );
     // Print headers.
     for ( auto col : columns ) {
         printf ( "%s%s%-*s%s",
@@ -92,5 +92,5 @@ void TableView::print ()
         }
         printf ( "\n" );
     }
-    fputc('\n', stdout);
+    fputc ( '\n', stdout );
 }
