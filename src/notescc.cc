@@ -282,19 +282,23 @@ public:
     }
 
 
-    ~NotesCC()
+    void clear ()
     {
         if ( git_changed ) {
             notes_print_info ( "Commiting changes to git.\n" );
             repository_commit_changes ();
+            git_changed = false;
         }
 
         // Clean git references.
         if ( git_repo_index != nullptr ) {
             git_index_free ( git_repo_index );
+            git_repo_index = nullptr;
         }
+
         if ( git_repo != nullptr ) {
             git_repository_free ( git_repo );
+            git_repo = nullptr;
         }
 
         // delete notes.
@@ -303,6 +307,11 @@ public:
                 delete note;
             }
         }
+    }
+
+    ~NotesCC()
+    {
+        clear();
     }
 
     void print_projects ()
@@ -373,8 +382,8 @@ public:
         }
 
         cargs++;
-        int nindex = std::stoi ( argv[0] );
-        if ( nindex < 1 || nindex > (int) notes.size () || notes[nindex - 1] == nullptr ) {
+        unsigned int nindex = std::stoul ( argv[0] );
+        if ( nindex < 1 || nindex > last_note_id || notes[nindex - 1] == nullptr ) {
             notes_print_error ( "Invalid note id: %d\n", nindex );
             return cargs;
         }
@@ -409,8 +418,8 @@ public:
         }
 
         cargs++;
-        int nindex = std::stoi ( argv[0] );
-        if ( nindex < 1 || nindex > (int) notes.size () || notes[nindex - 1] == nullptr ) {
+        unsigned int nindex = std::stoul ( argv[0] );
+        if ( nindex < 1 || nindex > last_note_id || notes[nindex - 1] == nullptr ) {
             notes_print_error ( "Invalid note id: %d\n", nindex );
             return cargs;
         }
@@ -450,12 +459,12 @@ public:
             return iter;
         }
         iter++;
-        int nindex = -1;
+        unsigned int nindex = 0;
         try {
-            nindex = std::stoi ( argv[0] );
+            nindex = std::stoul ( argv[0] );
         } catch ( ... ) {
         }
-        if ( nindex < 1 || nindex > (int) notes.size () || notes[nindex - 1] == nullptr ) {
+        if ( nindex < 1 || nindex > last_note_id || notes[nindex - 1] == nullptr ) {
             notes_print_error ( "Invalid note id: %d\n", nindex );
             return iter;
         }
@@ -573,8 +582,8 @@ public:
         }
 
         cargs++;
-        int nindex = std::stoi ( argv[0] );
-        if ( nindex < 1 || nindex > (int) notes.size () ) {
+        unsigned int nindex = std::stoul ( argv[0] );
+        if ( nindex < 1 || nindex > last_note_id ) {
             notes_print_error ( "Invalid note id: %d\n", nindex );
             return cargs;
         }
@@ -614,7 +623,7 @@ public:
 
         if ( n != nullptr ) {
             this->notes.push_back ( n );
-            n->set_id ( this->notes.size () );
+            n->set_id ( ++this->last_note_id );
             n->edit ();
             // Commit the result.
             auto path = n->get_relative_path ();
