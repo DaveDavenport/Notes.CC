@@ -17,5 +17,16 @@ public:
     {
         return start_notes;
     }
+
+    unsigned int count ()
+    {
+        unsigned int retv = 0;
+        for ( auto n : start_notes ) {
+            if ( n != nullptr ) {
+                retv++;
+            }
+        }
+        return retv;
+    }
 };
 #endif // __FILTER_H__

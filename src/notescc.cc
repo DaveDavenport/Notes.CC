@@ -77,8 +77,65 @@ private:
     bool                git_changed      = false;
     Settings            *settings        = nullptr;
 
-
 public:
+    NotesCC( Settings *settings )  : Project ( "" ), settings ( settings )
+    {
+    }
+    ~NotesCC()
+    {
+        clear ();
+    }
+    void run ( int argc, char **argv )
+    {
+        // Check interactive mode.
+        if ( argc == 2 && strcmp ( argv[1], "interactive" ) == 0 ) {
+            notes_print_info ( "Interactive mode\n" );
+            interactive ();
+        }
+
+        // Check autocomplete.
+        else if ( argc > 1 && strcmp ( argv[1], "--complete" ) == 0 ) {
+            notes_print_quiet ();
+            run_autocomplete ( argc - 1, &argv[1] );
+        }
+
+        // Commandline parser
+        else {
+            cmd_parser ( argc - 1, &argv[1] );
+        }
+    }
+
+    /**
+     * Open the note repository.
+     */
+    bool open_repository ( )
+    {
+        const char *db_path = settings->get_repository ().c_str ();
+        // Check git repository.
+        if ( git_repository_open ( &git_repo, db_path ) != 0 ) {
+            notes_print_error ( "The repository directory '%s' is not a git repository.\n",
+                                db_path );
+            notes_print_error ( "Please initialize a new repository using git init.\n" );
+            return false;
+        }
+        if ( !this->check_repository_state () ) {
+            return false;
+        }
+
+        // Load the notes.
+        this->Load ( );
+
+        // Sort the notes.
+        std::sort ( this->notes.begin (), this->notes.end (), notes_print_sort );
+
+        // Gives them UIDs.
+        for ( auto note : this->notes ) {
+            note->set_id ( ++this->last_note_id );
+        }
+        return true;
+    }
+
+private:
     /**
      * This function is used to sort the notes and assign them an id.
      * Sorting should be stable between runs (when there is no edit of note).
@@ -100,9 +157,6 @@ public:
     }
 
 
-    NotesCC( Settings *settings )  : Project ( "" ), settings ( settings )
-    {
-    }
 
     git_commit * repository_get_last_commit ( )
     {
@@ -252,35 +306,6 @@ public:
         return true;
     }
 
-    /**
-     * Open the note repository.
-     */
-    bool open_repository ( )
-    {
-        const char *db_path = settings->get_repository ().c_str ();
-        // Check git repository.
-        if ( git_repository_open ( &git_repo, db_path ) != 0 ) {
-            notes_print_error ( "The repository directory '%s' is not a git repository.\n",
-                                db_path );
-            notes_print_error ( "Please initialize a new repository using git init.\n" );
-            return false;
-        }
-        if ( !this->check_repository_state () ) {
-            return false;
-        }
-
-        // Load the notes.
-        this->Load ( );
-
-        // Sort the notes.
-        std::sort ( this->notes.begin (), this->notes.end (), notes_print_sort );
-
-        // Gives them UIDs.
-        for ( auto note : this->notes ) {
-            note->set_id ( ++this->last_note_id );
-        }
-        return true;
-    }
 
 
     void clear ()
@@ -310,10 +335,6 @@ public:
         }
     }
 
-    ~NotesCC()
-    {
-        clear ();
-    }
 
     void print_projects ()
     {
@@ -375,21 +396,12 @@ public:
      */
     int command_edit ( int argc, char ** argv )
     {
-        // TODO: abstract this in a 'get note'
-        int cargs = 0;
-        if ( argc <= 0 ) {
-            notes_print_error ( "edit requires one argument\n" );
+        int  cargs = 0;
+        Note *note = this->get_note ( cargs, argc, argv );
+        if ( note == nullptr ) {
+            notes_print_error ( "No note selected\n" );
             return cargs;
         }
-
-        cargs++;
-        unsigned int nindex = std::stoul ( argv[0] );
-        if ( nindex < 1 || nindex > last_note_id || notes[nindex - 1] == nullptr ) {
-            notes_print_error ( "Invalid note id: %d\n", nindex );
-            return cargs;
-        }
-        Note *note = notes[nindex - 1];
-
         // Edit the note.
         if ( note->edit () ) {
             // Commit the result.
@@ -398,6 +410,64 @@ public:
         }
 
         return cargs;
+    }
+
+
+    Note * get_note ( int &cargs, int argc, char ** argv )
+    {
+        if ( argc == 1 ) {
+            // Get index.
+            try {
+                unsigned int nindex = std::stoul ( argv[0] );
+                if ( nindex > 0 && nindex <= last_note_id && notes[nindex - 1] != nullptr ) {
+                    cargs++;
+                    return notes[nindex - 1];
+                }
+                notes_print_error ( "Invalid note id: %d\n", nindex );
+            } catch ( ... ) {
+            }
+        }
+
+        NotesFilter filter ( this->notes );
+        for ( int iter; iter < argc; iter++ ) {
+            filter.add_filter ( argv[iter] );
+            cargs++;
+        }
+
+        // Get filtered notes.
+        auto notes = filter.get_filtered_notes ();
+        if ( filter.count () == 0 ) {
+            return nullptr;
+        }
+
+        // If one note is remaining, pick that one
+        else if ( filter.count () == 1 ) {
+            return notes[0];
+        }
+
+        while ( true ) {
+            this->display_notes ( notes );
+
+            char* resp = readline ( "Enter note id: " );
+            if ( resp ) {
+                // Quit
+                if ( resp[0] == 'q' ) {
+                    free ( resp );
+                    return nullptr;
+                }
+                try {
+                    unsigned int nindex = std::stoul ( resp );
+                    if ( nindex > 0 && nindex <= last_note_id && notes[nindex - 1] != nullptr ) {
+                        free ( resp );
+                        return notes[nindex - 1];
+                    }
+                }catch ( ... ) { }
+
+                notes_print_error ( "Invalid note id: %s\n", resp );
+                free ( resp );
+            }
+        }
+        return nullptr;
     }
 
     /**
@@ -410,24 +480,14 @@ public:
      */
     int command_view ( int argc, char ** argv )
     {
-        // TODO: abstract this in a 'get note'
-        // Note *note = this->get_note (argc[in], argv[in], cargs[out]);
-        int cargs = 0;
-        if ( argc <= 0 ) {
-            notes_print_error ( "view requires one argument\n" );
+        int  cargs = 0;
+        Note *note = this->get_note ( cargs, argc, argv );
+        if ( note == nullptr ) {
+            notes_print_error ( "No note selected\n" );
             return cargs;
         }
-
-        cargs++;
-        unsigned int nindex = std::stoul ( argv[0] );
-        if ( nindex < 1 || nindex > last_note_id || notes[nindex - 1] == nullptr ) {
-            notes_print_error ( "Invalid note id: %d\n", nindex );
-            return cargs;
-        }
-        Note *note = notes[nindex - 1];
 
         note->view ();
-
         return cargs;
     }
 
@@ -576,25 +636,15 @@ public:
 
     int command_delete ( int argc, char **argv )
     {
-        int cargs = 0;
-        if ( argc <= 0 ) {
-            notes_print_error ( "view requires one argument\n" );
-            return cargs;
-        }
-
-        cargs++;
-        unsigned int nindex = std::stoul ( argv[0] );
-        if ( nindex < 1 || nindex > last_note_id ) {
-            notes_print_error ( "Invalid note id: %d\n", nindex );
-            return cargs;
-        }
-        Note *note = notes[nindex - 1];
+        int  cargs = 0;
+        Note *note = this->get_note ( cargs, argc, argv );
         if ( note == nullptr ) {
-            notes_print_error ( "Note does not exists\n" );
+            notes_print_error ( "No note selected\n" );
             return cargs;
         }
 
         // Delete the file from internal structure and working directory.
+        unsigned int nindex = note->get_id () - 1;
         if ( note->del () ) {
             // Tell git the file is removed.
             repository_delete_file ( note->get_relative_path () );
@@ -763,27 +813,7 @@ public:
             this->command_list ( 0, NULL );
         }
     }
-    void run ( int argc, char **argv )
-    {
-        // Check interactive mode.
-        if ( argc == 2 && strcmp ( argv[1], "interactive" ) == 0 ) {
-            notes_print_info ( "Interactive mode\n" );
-            interactive ();
-        }
 
-        // Check autocomplete.
-        else if ( argc > 1 && strcmp ( argv[1], "--complete" ) == 0 ) {
-            notes_print_quiet ();
-            run_autocomplete ( argc - 1, &argv[1] );
-        }
-
-        // Commandline parser
-        else {
-            cmd_parser ( argc - 1, &argv[1] );
-        }
-    }
-
-private:
     void Load ( )
     {
         // Iterate over all files in the git index.
@@ -822,16 +852,14 @@ private:
 int main ( int argc, char ** argv )
 {
     INIT_TIC_TAC ()
-    git_threads_init ();
 
     // Open settings manager.
     Settings settings;
 
-    NotesCC  *notes = new NotesCC ( &settings );
+    NotesCC *notes = new NotesCC ( &settings );
 
     // Open repository
     if ( notes->open_repository ( ) ) {
-        // TODO: move this.
         notes->run ( argc, argv );
     }
 
