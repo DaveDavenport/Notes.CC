@@ -19,6 +19,8 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
+#include <settings.h>
+
 struct timespec _tick_start;
 struct timespec _tick_stop;
 
@@ -108,13 +110,13 @@ class NotesCC : public Project
 {
 private:
     unsigned int        last_note_id = 0;
-    std::string         db_path;
 // Root project.
     std::vector<Note *> notes;
 
     git_repository      *git_repo        = nullptr;
     git_index           * git_repo_index = nullptr;
     bool                git_changed      = false;
+    Settings            *settings        = nullptr;
 
 
 public:
@@ -139,7 +141,7 @@ public:
     }
 
 
-    NotesCC()  : Project ( "" )
+    NotesCC(Settings *settings )  : Project ( "" ), settings(settings)
     {
     }
 
@@ -239,8 +241,8 @@ public:
         // Check if it is in a sane state.
         int state = git_repository_state ( git_repo );
         if ( state != GIT_REPOSITORY_STATE_NONE ) {
-            fprintf ( stderr, "The repository is not in a clean state.\n" );
-            fprintf ( stderr, "Please resolve any outstanding issues first.\n" );
+            notes_error ( "The repository is not in a clean state.\n" );
+            notes_error ( "Please resolve any outstanding issues first.\n" );
             return false;
         }
         // Check bare directory
@@ -287,13 +289,14 @@ public:
     /**
      * Open the note repository.
      */
-    bool open_repository ( const char *path )
+    bool open_repository ( )
     {
-        db_path = path;
+        const char *db_path = settings->get_repository().c_str();
         // Check git repository.
-        if ( git_repository_open ( &git_repo, path ) != 0 ) {
-            fprintf ( stderr, "The repository directory '%s' is not a git repository.\n", path );
-            fprintf ( stderr, "Please initialize a new repository using git init.\n" );
+        if ( git_repository_open ( &git_repo, db_path ) != 0 ) {
+            notes_error ( "The repository directory '%s' is not a git repository.\n",
+                    db_path );
+            notes_error ( "Please initialize a new repository using git init.\n" );
             return false;
         }
         if ( !this->check_repository_state () ) {
@@ -344,7 +347,7 @@ public:
 
     std::string get_path ()
     {
-        return db_path;
+        return settings->get_repository();
     }
 
     std::string get_relative_path ()
@@ -824,19 +827,18 @@ private:
 int main ( int argc, char ** argv )
 {
     bool autocomplete = false;
-    char *path        = NULL;
 
     INIT_TIC_TAC ()
+    git_threads_init();
 
-    if ( asprintf ( &path, "%s/Notes2/", getenv ( "HOME" ) ) == -1 ) {
-        fprintf ( stderr, "Failed to get path\n" );
-        return EXIT_FAILURE;
-    }
+    // Open settings manager. 
+    Settings settings;
 
-    NotesCC *notes = new NotesCC ();
+    NotesCC *notes = new NotesCC (&settings);
 
     // Open repository
-    if ( notes->open_repository ( path ) ) {
+    if ( notes->open_repository ( ) ) {
+        // TODO: move this.
         // Check interactive mode.
         if ( argc == 2 && strcmp ( argv[1], "interactive" ) == 0 ) {
             notes->interactive ();
@@ -854,7 +856,6 @@ int main ( int argc, char ** argv )
         }
     }
 
-    free ( path );
     delete notes;
 
     if ( !autocomplete ) {
