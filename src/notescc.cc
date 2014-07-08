@@ -27,15 +27,15 @@ struct timespec _tick_stop;
 
 #define INIT_TIC_TAC()    { clock_gettime ( CLOCK_REALTIME, &_tick_start ); }
 
-#define TIC( a )          {                                                        \
-        clock_gettime ( CLOCK_REALTIME, &_tick_stop );                             \
-        timespec diff;                                                             \
-        diff.tv_sec  = _tick_stop.tv_sec - _tick_start.tv_sec;                     \
-        diff.tv_nsec = _tick_stop.tv_nsec - _tick_start.tv_nsec;                   \
-        if ( diff.tv_nsec < 0 ) {                                                  \
-            diff.tv_sec  -= 1;                                                     \
-            diff.tv_nsec += 1e9;                                                   \
-        }                                                                          \
+#define TIC( a )          {                                                              \
+        clock_gettime ( CLOCK_REALTIME, &_tick_stop );                                   \
+        timespec diff;                                                                   \
+        diff.tv_sec  = _tick_stop.tv_sec - _tick_start.tv_sec;                           \
+        diff.tv_nsec = _tick_stop.tv_nsec - _tick_start.tv_nsec;                         \
+        if ( diff.tv_nsec < 0 ) {                                                        \
+            diff.tv_sec  -= 1;                                                           \
+            diff.tv_nsec += 1e9;                                                         \
+        }                                                                                \
         notes_print_info ( "%s: %lu s, %.2f ms\n", a, diff.tv_sec, diff.tv_nsec / 1e6 ); \
 }
 
@@ -224,7 +224,7 @@ public:
 
         size_t i, maxi = git_status_list_entrycount ( gsl );
         bool   clean = true;
-        int mask = 0;
+        int    mask  = 0;
         for ( i = 0; i < maxi; i++ ) {
             const git_status_entry *s = git_status_byindex ( gsl, i );
             if ( s->status != GIT_STATUS_CURRENT ) {
@@ -235,11 +235,12 @@ public:
         git_status_list_free ( gsl );
 
         if ( !clean ) {
-            if((mask&GIT_STATUS_WT_NEW) == GIT_STATUS_WT_NEW ) {
-                notes_print_warning ( "There are untracked files in your repository\n");
-            } else {
-                notes_print_error ( "There are modified files in your repository\n");
-                notes_print_error ( "Please fix these and commit the changes\n");
+            if ( ( mask & GIT_STATUS_WT_NEW ) == GIT_STATUS_WT_NEW ) {
+                notes_print_warning ( "There are untracked files in your repository\n" );
+            }
+            else {
+                notes_print_error ( "There are modified files in your repository\n" );
+                notes_print_error ( "Please fix these and commit the changes\n" );
                 return false;
             }
         }
@@ -260,7 +261,7 @@ public:
         // Check git repository.
         if ( git_repository_open ( &git_repo, db_path ) != 0 ) {
             notes_print_error ( "The repository directory '%s' is not a git repository.\n",
-                          db_path );
+                                db_path );
             notes_print_error ( "Please initialize a new repository using git init.\n" );
             return false;
         }
@@ -311,7 +312,7 @@ public:
 
     ~NotesCC()
     {
-        clear();
+        clear ();
     }
 
     void print_projects ()
@@ -766,13 +767,13 @@ public:
     {
         // Check interactive mode.
         if ( argc == 2 && strcmp ( argv[1], "interactive" ) == 0 ) {
-            notes_print_info ("Interactive mode\n");
+            notes_print_info ( "Interactive mode\n" );
             interactive ();
         }
 
         // Check autocomplete.
         else if ( argc > 1 && strcmp ( argv[1], "--complete" ) == 0 ) {
-            notes_print_quiet();
+            notes_print_quiet ();
             run_autocomplete ( argc - 1, &argv[1] );
         }
 
@@ -780,7 +781,6 @@ public:
         else {
             cmd_parser ( argc - 1, &argv[1] );
         }
-
     }
 
 private:
@@ -832,7 +832,7 @@ int main ( int argc, char ** argv )
     // Open repository
     if ( notes->open_repository ( ) ) {
         // TODO: move this.
-        notes->run(argc, argv);
+        notes->run ( argc, argv );
     }
 
     delete notes;

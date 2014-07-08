@@ -11,7 +11,7 @@ public:
         start_notes = notes;
     }
 
-    void add_filter ( std::string value ); 
+    void add_filter ( std::string value );
 
     const std::vector<Note *> &get_filtered_notes () const
     {

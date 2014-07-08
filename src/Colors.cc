@@ -6,7 +6,9 @@ static bool quiet = false;
 
 void notes_print_error ( const char *format, ... )
 {
-    if(quiet) return;
+    if ( quiet ) {
+        return;
+    }
     fputs ( color_red_bold "[ERROR   ]: " color_reset, stderr );
     va_list ap;
     va_start ( ap, format );
@@ -16,7 +18,9 @@ void notes_print_error ( const char *format, ... )
 
 void notes_print_info ( const char *format, ... )
 {
-    if(quiet) return;
+    if ( quiet ) {
+        return;
+    }
     fputs ( color_blue_bold "[INFO    ]: " color_reset, stdout );
     va_list ap;
     va_start ( ap, format );
@@ -25,7 +29,9 @@ void notes_print_info ( const char *format, ... )
 }
 void notes_print_warning ( const char *format, ... )
 {
-    if(quiet) return;
+    if ( quiet ) {
+        return;
+    }
     fputs ( color_yellow_bold "[WARNING ]: " color_reset, stdout );
     va_list ap;
     va_start ( ap, format );
