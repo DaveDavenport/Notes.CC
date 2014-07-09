@@ -52,6 +52,8 @@ const char * commands[] =
     "view",
     "cat",
     "list",
+    "push",
+    "pull",
     "export",
     "delete",
     "projects",
@@ -85,6 +87,23 @@ public:
     }
     ~NotesCC()
     {
+        if ( git_changed ) {
+            notes_print_info ( "Commiting changes to git.\n" );
+            repository_commit_changes ();
+            git_changed = false;
+        }
+
+        // Clean git references.
+        if ( git_repo_index != nullptr ) {
+            git_index_free ( git_repo_index );
+            git_repo_index = nullptr;
+        }
+
+        if ( git_repo != nullptr ) {
+            git_repository_free ( git_repo );
+            git_repo = nullptr;
+        }
+        // Clear internal state.
         clear ();
     }
     void run ( int argc, char **argv )
@@ -127,13 +146,6 @@ public:
         // Load the notes.
         this->Load ( );
 
-        // Sort the notes.
-        std::sort ( this->notes.begin (), this->notes.end (), notes_print_sort );
-
-        // Gives them UIDs.
-        for ( auto note : this->notes ) {
-            note->set_id ( ++this->last_note_id );
-        }
         return true;
     }
 
@@ -241,12 +253,226 @@ private:
         }
         git_signature_free ( sign );
 
-
         rc = git_index_write ( git_repo_index );
         if ( rc != 0 ) {
             notes_print_error ( "Failed to write index to disc.\n" );
             return false;
         }
+
+        return true;
+    }
+
+    // TODO: Clean this (fetch & full )mess up.
+    bool repository_fetch ()
+    {
+        git_remote *remote = nullptr;
+        int        rc      = git_remote_load ( &remote, git_repo, "origin" );
+        if ( rc != 0 ) {
+            const git_error *e = giterr_last ();
+            notes_print_error ( "Failed to load remote 'origin': %s\n", e->message );
+            return false;
+        }
+
+        git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
+        callbacks.credentials = cred_acquire_cb;
+        git_remote_set_callbacks ( remote, &callbacks );
+
+        rc = git_remote_fetch ( remote, NULL, NULL );
+        if ( rc != 0 ) {
+            const git_error *e = giterr_last ();
+            notes_print_error ( "Failed to load remote 'origin': %s\n", e->message );
+            git_remote_free ( remote );
+            return false;
+        }
+        git_remote_free ( remote );
+        return true;
+    }
+    bool repository_push ()
+    {
+        git_remote *remote = nullptr;
+        int        rc      = git_remote_load ( &remote, git_repo, "origin" );
+        if ( rc != 0 ) {
+            const git_error *e = giterr_last ();
+            notes_print_error ( "Failed to load remote 'origin': %s\n", e->message );
+            return false;
+        }
+
+        git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
+        callbacks.credentials = cred_acquire_cb;
+        git_remote_set_callbacks ( remote, &callbacks );
+
+        rc = git_remote_connect ( remote, GIT_DIRECTION_PUSH );
+        if ( rc != 0 ) {
+            const git_error *e = giterr_last ();
+            notes_print_error ( "Failed to connect to remote 'origin': %s\n", e->message );
+            git_remote_free ( remote );
+            return false;
+        }
+
+        git_push *out;
+        rc = git_push_new ( &out, remote );
+        if ( rc != 0 ) {
+            const git_error *e = giterr_last ();
+            notes_print_error ( "Failed to setup push to remote 'origin': %s\n", e->message );
+            git_remote_free ( remote );
+            return false;
+        }
+
+        git_reference *ref;
+        rc = git_repository_head ( &ref, git_repo );
+        if ( rc != 0 ) {
+            const git_error *e = giterr_last ();
+            notes_print_error ( "Failed to get head: %s\n", e->message );
+            git_remote_free ( remote );
+            return false;
+        }
+        // Push to master branch.
+        rc = git_push_add_refspec ( out, git_reference_name ( ref ) );
+        git_reference_free ( ref );
+        if ( rc != 0 ) {
+            const git_error *e = giterr_last ();
+            notes_print_error ( "Failed to add refspec push to remote 'origin': %s\n", e->message );
+            git_remote_free ( remote );
+            return false;
+        }
+        rc = git_push_finish ( out );
+        if ( rc != 0 ) {
+            const git_error *e = giterr_last ();
+            notes_print_error ( "Failed to push to remote 'origin': %s\n", e->message );
+            git_remote_free ( remote );
+            return false;
+        }
+
+        if ( !git_push_unpack_ok ( out ) ) {
+            notes_print_error ( "Failed to push to remote location.\n" );
+
+            git_push_status_foreach ( out,
+                                      [] ( const char *a, const char *b, __attribute__ ( ( unused ) ) void *data ) {
+                                          notes_print_error ( "Failed to push ref: %s %s\n", a, b );
+                                          return 0;
+                                      }, nullptr );
+        }
+        git_push_free ( out );
+
+
+        git_remote_disconnect ( remote );
+        git_remote_free ( remote );
+
+
+        return repository_fetch ();
+    }
+    bool repository_pull ( )
+    {
+        // Commit changes if exists.
+        if ( git_changed ) {
+            notes_print_info ( "Commiting changes to git.\n" );
+            repository_commit_changes ();
+            git_changed = false;
+        }
+        if ( !repository_fetch () ) {
+            return false;
+        }
+
+        git_reference *headref = NULL;
+        int           ret      = git_reference_lookup ( &headref, git_repo, "FETCH_HEAD" );
+        if ( ret != 0 ) {
+            const git_error *e = giterr_last ();
+            notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+            notes_print_error ( "Failed to look up references for merge head\n" );
+            return false;
+        }
+
+        git_merge_preference_t pref;
+        git_merge_analysis_t   analysis;
+        ret = git_merge_analysis ( &analysis, &pref, git_repo, (const git_merge_head * *) &headref, 1 );
+
+        if ( ret != 0 ) {
+            const git_error *e = giterr_last ();
+            notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+            notes_print_error ( "Failed to analyze merge \n" );
+            git_reference_free ( headref );
+            return false;
+        }
+
+        if ( ( analysis & GIT_MERGE_ANALYSIS_FASTFORWARD ) > 0 ) {
+            notes_print_info ( "Fast forward merge required.\n" );
+            git_reference *ref, *href;
+
+
+            ret = git_repository_head ( &href, git_repo );
+            if ( ret != 0 ) {
+                notes_print_error ( "Failed to get repository head\n" );
+                git_reference_free ( headref );
+                return false;
+            }
+
+            if ( git_reference_shorthand ( href ) == nullptr ) {
+                notes_print_error ( "Failed to get current repository branch name\n" );
+                git_reference_free ( headref );
+                git_reference_free ( href );
+                return false;
+            }
+            // Get branch
+            git_branch_lookup ( &ref, git_repo, git_reference_shorthand ( href ), GIT_BRANCH_LOCAL );
+
+            git_reference_free ( href );
+
+            if ( !git_branch_is_head ( ref ) ) {
+                notes_print_error ( "Branch head is not current head\n" );
+                git_reference_free ( headref );
+                return false;
+            }
+
+            git_reference *newf;
+            git_object    *obj;
+            ret = git_reference_peel ( &obj, headref, GIT_OBJ_COMMIT );
+            if ( ret != 0 ) {
+                const git_error *e = giterr_last ();
+                notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+                notes_print_error ( "Failed to fast-forward the master branch.\n" );
+                git_reference_free ( ref );
+                git_reference_free ( headref );
+                return false;
+            }
+
+            const git_oid * commit_id = git_object_id ( obj );
+            ret = git_reference_set_target ( &newf, ref, commit_id, NULL, "fast-forward" );
+            git_reference_free ( ref );
+            git_object_free ( obj );
+            if ( ret != 0 ) {
+                const git_error *e = giterr_last ();
+                notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+                notes_print_error ( "Failed to fast-forward the master branch.\n" );
+                git_reference_free ( headref );
+                return false;
+            }
+
+            // Update working tree.
+            git_checkout_options checkout_opts = GIT_CHECKOUT_OPTIONS_INIT;
+            checkout_opts.checkout_strategy = GIT_CHECKOUT_FORCE;
+            ret                             = git_checkout_head ( git_repo, &checkout_opts );
+            if ( ret != 0 ) {
+                const git_error *e = giterr_last ();
+                notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+                notes_print_error ( "Failed to checkout latest changes into Work Tree.\n" );
+                git_reference_free ( headref );
+                return false;
+            }
+            // Clear old index.
+            git_index_read ( git_repo_index, false );
+
+            this->clear ();
+            this->Load ();
+        }
+        else if ( ( analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE ) > 0 ) {
+        }
+        else {
+            notes_print_error ( "The repository cannot be fast forwarded, please do a merge first\n" );
+            git_reference_free ( headref );
+            return false;
+        }
+
+        git_reference_free ( headref );
 
         return true;
     }
@@ -312,29 +538,18 @@ private:
 
     void clear ()
     {
-        if ( git_changed ) {
-            notes_print_info ( "Commiting changes to git.\n" );
-            repository_commit_changes ();
-            git_changed = false;
-        }
-
-        // Clean git references.
-        if ( git_repo_index != nullptr ) {
-            git_index_free ( git_repo_index );
-            git_repo_index = nullptr;
-        }
-
-        if ( git_repo != nullptr ) {
-            git_repository_free ( git_repo );
-            git_repo = nullptr;
-        }
-
         // delete notes.
         for ( auto note : notes ) {
             if ( note != nullptr ) {
                 delete note;
             }
         }
+        notes.clear ();
+        for ( auto project : child_projects ) {
+            delete project;
+        }
+        child_projects.clear ();
+        this->last_note_id = 0;
     }
 
 
@@ -569,6 +784,13 @@ private:
         return 3;
     }
 
+    static int cred_acquire_cb ( git_cred** cred, const char*,
+                                 const char *user, unsigned int, void* )
+    {
+        return git_cred_ssh_key_from_agent ( cred, user );
+    }
+private:
+
     int command_move ( int argc, char **argv )
     {
         int iter = 0;
@@ -707,7 +929,7 @@ private:
             repository_delete_file ( note->get_relative_path () );
             // Delete the entry from the list.
             delete note;
-            notes[nindex - 1] = nullptr;
+            notes[nindex] = nullptr;
         }
         return cargs;
     }
@@ -892,6 +1114,14 @@ private:
                 index++;
                 index += this->command_projects ( argc - index, &argv[index] );
             }
+            else if ( strcmp ( argv[index], "pull" ) == 0 ) {
+                index++;
+                repository_pull ();
+            }
+            else if ( strcmp ( argv[index], "push" ) == 0 ) {
+                index++;
+                repository_push ();
+            }
             else {
                 notes_print_error ( "Invalid command: '%s'\n", argv[index] );
                 return;
@@ -932,6 +1162,13 @@ private:
             // Add to the flat list in the main.
             this->notes.push_back ( note );
             free ( path );
+        }
+        // Sort the notes.
+        std::sort ( this->notes.begin (), this->notes.end (), notes_print_sort );
+
+        // Gives them UIDs.
+        for ( auto note : this->notes ) {
+            note->set_id ( ++this->last_note_id );
         }
     }
 };

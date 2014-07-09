@@ -15,15 +15,15 @@ class Project
 {
 private:
 // Pointer to the parent Project.
-    Project             *parent = nullptr;
+    Project           *parent = nullptr;
 // Name of this project.
-    std::string         name;
+    std::string       name;
 // List of notes contained in this project. (project does not own note)
-    std::list<Note *>   notes;
-// List of children projects (projects owns it and should free it)
-    std::list<Project*> child_projects;
+    std::list<Note *> notes;
 
 protected:
+// List of children projects (projects owns it and should free it)
+    std::list<Project*> child_projects;
     void set_parent ( Project *parent );
 
 public:

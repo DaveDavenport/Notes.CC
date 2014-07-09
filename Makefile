@@ -21,7 +21,7 @@ MARKDOWN_LIBS:=-lmarkdown
 
 OUT=notescc
 
-CXXFLAGS=-std=c++11 -O3 -g3 -Wall -Wextra -Wno-missing-field-initializers\
+CXXFLAGS=-std=c++11 -O0 -g3 -Wall -Wextra -Wno-missing-field-initializers\
          -Iinclude/\
          $(LIB2_CFLAGS)\
          $(READLINE_CFLAGS)\
