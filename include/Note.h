@@ -4,6 +4,10 @@
 #include <time.h>
 #include <list>
 
+extern "C" {
+#include <mkdio.h>
+}
+
 // Forward declaration.
 class Project;
 class Settings;
@@ -97,7 +101,11 @@ public:
     bool del ();
 
     bool move ( Project *p );
+
+    bool export_to_file_html ( std::string file );
+    bool export_to_file_raw ( std::string file );
 private:
+    MMIOT *get_markdown_doc ();
     bool write_body ( FILE *fpout );
     void write_header ( FILE *header );
     /**

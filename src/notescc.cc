@@ -46,15 +46,16 @@ struct timespec _tick_stop;
 // List of supported commands.
 const char * commands[] =
 {
-    "interactive",
     "add",
     "move",
     "edit",
     "view",
     "cat",
     "list",
+    "export",
     "delete",
     "projects",
+    "interactive",
     nullptr
 };
 
@@ -533,6 +534,40 @@ private:
         this->display_notes ( filter.get_filtered_notes () );
         return iter;
     }
+    int command_export ( int argc, char **argv )
+    {
+        if ( argc != 3 ) {
+            notes_print_error ( "Export requires three arguments: <note id> <type> <export_file>\n" );
+            return 0;
+        }
+        unsigned int nindex = 0;
+        try {
+            nindex = std::stoul ( argv[0] );
+        } catch ( ... ) {
+        }
+        if ( nindex < 1 || nindex > last_note_id || notes[nindex - 1] == nullptr ) {
+            notes_print_error ( "Invalid note id: %d\n", nindex );
+            return 3;
+        }
+        Note        *note = notes[nindex - 1];
+
+        std::string export_path = argv[2];
+        std::string format      = argv[1];
+
+        notes_print_info ( "Exporting note %u to '%s'\n", note->get_id (), argv[2] );
+
+        if ( format == "raw" ) {
+            note->export_to_file_raw ( export_path );
+        }
+        else if ( format == "html" ) {
+            note->export_to_file_html ( export_path );
+        }
+        else {
+            notes_print_error ( "%s is an invalid export format. (raw and html are supported)\n",
+                                format.c_str () );
+        }
+        return 3;
+    }
 
     int command_move ( int argc, char **argv )
     {
@@ -706,6 +741,28 @@ private:
         return retv;
     }
 
+    void command_export_autocomplete ( int argc, __attribute__( ( unused ) ) char **argv  )
+    {
+        if ( argc == 1 ) {
+            for ( auto note : notes ) {
+                printf ( "%u\n", note->get_id () );
+            }
+        }
+        else if ( argc == 2 ) {
+            printf ( "html\nraw\n" );
+        }
+    }
+    void command_move_autocomplete ( int argc, __attribute__ ( ( unused ) ) char **argv )
+    {
+        if ( argc == 1 ) {
+            for ( auto note : notes ) {
+                printf ( "%u\n", note->get_id () );
+            }
+        }
+        else if ( argc == 2 ) {
+            list_projects ();
+        }
+    }
 
     /**
      * Implement the autocomplete command.
@@ -726,15 +783,16 @@ private:
             }
             return;
         }
+        else if ( command == "export" ) {
+            this->command_export_autocomplete ( argc - 1, &argv[1] );
+        }
+        else if ( command == "move" ) {
+            this->command_move_autocomplete ( argc - 1, &argv[1] );
+        }
         else if ( command == "edit"  ) {
             if ( argc == 2 ) {
                 this->command_edit_autocomplete ();
             }
-            return;
-        }
-        else if ( command == "interactive" ||
-                  command == "projects" ) {
-            // Stop.
             return;
         }
         else if ( command == "add" ) {
@@ -825,6 +883,10 @@ private:
             else if ( strcmp ( argv[index], "delete" ) == 0 ) {
                 index++;
                 index += this->command_delete ( argc - index, &argv[index] );
+            }
+            else if ( strcmp ( argv[index], "export" ) == 0 ) {
+                index++;
+                index += this->command_export ( argc - index, &argv[index] );
             }
             else if ( strcmp ( argv[index], "projects" ) == 0 ) {
                 index++;

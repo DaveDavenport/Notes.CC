@@ -20,10 +20,6 @@
 
 #include <Colors.h>
 
-extern "C" {
-#include <mkdio.h>
-}
-
 
 // CRC copied from:
 /* Copyright (C) 1986 Gary S. Brown. You may use this program, or
@@ -282,34 +278,18 @@ static pid_t exec_cmd ( const char *cmd )
 
 void Note::view ()
 {
-    std::string fpath = project->get_path () + "/" + filename;
-    char        *path;
+    MMIOT *doc = get_markdown_doc ();
+    if ( doc == nullptr ) {
+        return;
+    }
+
+    char *path;
     if ( asprintf ( &path, "/tmp/notecc-%u.xhtml", this->hash ) <= 0 ) {
         notes_print_error ( "Failed to create note tmp path\n" );
         return;
     }
 
-    FILE *fp = fopen ( fpath.c_str (), "r" );
-    if ( fp == nullptr ) {
-        notes_print_error ( "Failed to open note: %s\n", fpath.c_str () );
-        free ( path );
-        return;
-    }
-
-    // Skip header.
-    char buffer[1024];
-    int  start = 0;
-    while ( start < 2 && fgets ( buffer, 1024, fp ) != nullptr ) {
-        if ( buffer[0] == '-' ) {
-            start++;
-        }
-    }
-
-    // Parse remainder of document.
-    MMIOT *doc = mkd_in ( fp, 0 );
-    fclose ( fp );
-
-    fp = fopen ( path, "w" );
+    FILE *fp = fopen ( path, "w" );
     if ( fp == nullptr ) {
         notes_print_error ( "Failed to open tmp file: %s %s\n", path, strerror ( errno ) );
         free ( path );
@@ -508,4 +488,69 @@ bool Note::move ( Project *p )
         return false;
     }
     return true;
+}
+
+bool Note::export_to_file_raw ( std::string path )
+{
+    FILE *fp = fopen ( path.c_str (), "w" );
+    if ( fp == NULL ) {
+        notes_print_error ( "Failed to open file for writing: %s\n",
+                            strerror ( errno ) );
+        return false;
+    }
+    if ( !this->write_body ( fp ) ) {
+        fclose ( fp );
+        return false;
+    }
+
+    fclose ( fp );
+    return true;
+}
+
+bool Note::export_to_file_html ( std::string path )
+{
+    MMIOT *doc = get_markdown_doc ();
+    if ( doc == nullptr ) {
+        return false;
+    }
+
+    FILE *fp = fopen ( path.c_str (), "w" );
+    if ( fp == NULL ) {
+        notes_print_error ( "Failed to open file for writing: %s\n",
+                            strerror ( errno ) );
+        mkd_cleanup ( doc );
+        return false;
+    }
+
+    // Generate XHTML page.
+    mkd_xhtmlpage ( doc, 0, fp );
+    fclose ( fp );
+    mkd_cleanup ( doc );
+
+    return true;
+}
+
+
+MMIOT *Note::get_markdown_doc ( )
+{
+    std::string fpath = project->get_path () + "/" + filename;
+    FILE        *fp   = fopen ( fpath.c_str (), "r" );
+    if ( fp == nullptr ) {
+        notes_print_error ( "Failed to open note: %s\n", fpath.c_str () );
+        return nullptr;
+    }
+
+    // Skip header.
+    char buffer[1024];
+    int  start = 0;
+    while ( start < 2 && fgets ( buffer, 1024, fp ) != nullptr ) {
+        if ( buffer[0] == '-' ) {
+            start++;
+        }
+    }
+
+    // Parse remainder of document.
+    MMIOT *doc = mkd_in ( fp, 0 );
+    fclose ( fp );
+    return doc;
 }
