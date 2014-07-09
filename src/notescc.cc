@@ -280,7 +280,13 @@ private:
         rc = git_remote_fetch ( remote, NULL, NULL );
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to load remote 'origin': %s\n", e->message );
+            if(e != nullptr) {
+                notes_print_error ( "Failed to load remote 'origin': %s\n", e->message );
+            }else {
+                notes_print_error ( "Failed to load remote 'origin'.\n");
+                notes_print_error ( "please check that fetching works.\n");
+                notes_print_error ( "Note: SSH remotes should use the ssh:// url syntax.\n");
+            }
             git_remote_free ( remote );
             return false;
         }
@@ -304,7 +310,13 @@ private:
         rc = git_remote_connect ( remote, GIT_DIRECTION_PUSH );
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to connect to remote 'origin': %s\n", e->message );
+            if(e != nullptr) {
+                notes_print_error ( "Failed to load remote 'origin': %s\n", e->message );
+            }else {
+                notes_print_error ( "Failed to load remote 'origin'.\n");
+                notes_print_error ( "please check that fetching works.\n");
+                notes_print_error ( "Note: SSH remotes should use the ssh:// url syntax.\n");
+            }
             git_remote_free ( remote );
             return false;
         }
