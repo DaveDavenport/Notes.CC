@@ -8,7 +8,7 @@ EDITOR=gvim -f
 ##
 # Git directory containing the notes.
 ##
-REPOSITORY=/home/qball/Notes4/
+REPOSITORY=/home/qball/Notes2/
 
 ##
 # HTML Viewer

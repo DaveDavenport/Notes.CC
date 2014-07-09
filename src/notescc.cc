@@ -243,7 +243,7 @@ private:
                                     "HEAD",
                                     sign, sign,
                                     NULL,
-                                    "Edited note.\n",
+                                    "NoteCC autocommit.\n",
                                     tree_cmt, entries, commits );
                 git_tree_free ( tree_cmt );
                 if ( last_commit ) {
