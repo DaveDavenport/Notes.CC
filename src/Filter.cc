@@ -9,7 +9,7 @@
 NotesFilter::NotesFilter( std::vector< Note *> notes )
 {
     // Copy the list!
-    start_notes = std::list<Note *>(notes.begin(),notes.end());
+    start_notes = std::list<Note *>( notes.begin (), notes.end () );
 }
 
 void NotesFilter::add_filter ( std::string value )
@@ -37,5 +37,5 @@ void NotesFilter::add_filter ( std::string value )
         }
     }
     // Remove empty items.
-    start_notes.remove(nullptr);
+    start_notes.remove ( nullptr );
 }

@@ -3,7 +3,6 @@
 
 
 class Settings {
-
 public:
     static const char dir_separator = '/';
     Settings();

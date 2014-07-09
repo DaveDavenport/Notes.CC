@@ -70,6 +70,14 @@ public:
 
     unsigned long get_revision () const;
 
+    std::string get_relative_path ()
+    {
+        if ( this->project->is_root () ) {
+            return this->filename;
+        }
+        return this->project->get_relative_path () + "/" + this->filename;
+    }
+
     /**
      * Compile the note and view it.
      */
@@ -80,19 +88,17 @@ public:
      */
     bool edit ();
 
-    std::string get_relative_path ()
-    {
-        if ( this->project->is_root () ) {
-            return this->filename;
-        }
-        return this->project->get_relative_path () + "/" + this->filename;
-    }
+    /**
+     * Cat the node to stdout.
+     */
+    bool cat ();
+
     // Delete a note.
     bool del ();
 
     bool move ( Project *p );
 private:
-    void write_body ( FILE *fpout );
+    bool write_body ( FILE *fpout );
     void write_header ( FILE *header );
     /**
      * This function does nothing more then a copy

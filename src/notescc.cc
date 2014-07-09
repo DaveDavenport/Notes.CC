@@ -51,6 +51,7 @@ const char * commands[] =
     "move",
     "edit",
     "view",
+    "cat",
     "list",
     "delete",
     "projects",
@@ -404,20 +405,20 @@ private:
         }
 
         NotesFilter filter ( this->notes );
-        for ( int iter=0; iter < argc; iter++ ) {
+        for ( int iter = 0; iter < argc; iter++ ) {
             filter.add_filter ( argv[iter] );
             cargs++;
         }
 
         // Get filtered notes.
         auto fnotes = filter.get_filtered_notes ();
-        if ( fnotes.size() == 0 ) {
+        if ( fnotes.size () == 0 ) {
             return nullptr;
         }
 
         // If one note is remaining, pick that one
         else if ( fnotes.size () == 1 ) {
-            return *(fnotes.begin());
+            return *( fnotes.begin () );
         }
 
         while ( true ) {
@@ -492,6 +493,26 @@ private:
         return cargs;
     }
 
+    /**
+     * @param argc Number of renaming commandline options.
+     * @param argv Remaining commandline options.
+     *
+     * Print the raw note to stdout.
+     *
+     * @returns number of consumed commandline options.
+     */
+    int command_cat ( int argc, char ** argv )
+    {
+        int  cargs = 0;
+        Note *note = this->get_note ( cargs, argc, argv );
+        if ( note == nullptr ) {
+            notes_print_error ( "No note selected\n" );
+            return cargs;
+        }
+
+        note->cat ();
+        return cargs;
+    }
 
     /**
      * @param argc Number of renaming commandline options.
@@ -699,7 +720,7 @@ private:
             return;
         }
         std::string command = argv[1];
-        if ( command == "view"  ) {
+        if ( command == "view" || command == "cat" ) {
             if ( argc == 2 ) {
                 this->command_view_autocomplete ();
             }
@@ -780,6 +801,10 @@ private:
             if ( strcmp ( argv[index], "view" ) == 0 ) {
                 index++;
                 index += this->command_view ( argc - index, &argv[index] );
+            }
+            else if ( strcmp ( argv[index], "cat" ) == 0 ) {
+                index++;
+                index += this->command_cat ( argc - index, &argv[index] );
             }
             else if ( strcmp ( argv[index], "list" ) == 0 ) {
                 index++;

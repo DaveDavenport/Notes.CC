@@ -323,21 +323,23 @@ void Note::view ()
 
     // Fire up browser.
     char *command;
-    if ( asprintf ( &command, "xdg-open %s", path ) > 0 ) {
-        exec_cmd ( command );
+    if ( asprintf ( &command, "%s %s", settings->get_html_viewer ().c_str (), path ) > 0 ) {
+        pid_t pid = exec_cmd ( command );
+        // Wait till client is done.
+        waitpid ( pid, NULL, 0 );
         free ( command );
     }
 
     free ( path );
 }
 
-void Note::write_body ( FILE *fpout )
+bool Note::write_body ( FILE *fpout )
 {
     std::string fpath = project->get_path () + "/" + filename;
     FILE        *fp   = fopen ( fpath.c_str (), "r" );
     if ( fp == nullptr ) {
         notes_print_error ( "Failed to open note: %s\n", fpath.c_str () );
-        return;
+        return false;
     }
 
     // Skip header.
@@ -352,6 +354,15 @@ void Note::write_body ( FILE *fpout )
     this->copy_till_end_of_file ( fp, fpout );
 
     fclose ( fp );
+    return true;
+}
+
+bool Note::cat ()
+{
+    notes_print_info ( "Title:     %s\n", this->title.c_str () );
+    notes_print_info ( "Revisions: %u\n", this->revision );
+    notes_print_info ( "Last edit: %s\n", this->get_modtime ().c_str () );
+    return this->write_body ( stdout );
 }
 
 
