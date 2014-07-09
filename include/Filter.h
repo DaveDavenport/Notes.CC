@@ -7,22 +7,13 @@ class NotesFilter
 private:
     std::list<Note *> start_notes;
 public:
-    NotesFilter( std::vector< Note *> notes )
-    {
-        // Copy the list!
-        start_notes = std::list<Note *>(notes.begin(),notes.end());
-    }
 
+    NotesFilter( std::vector< Note *> notes );
     void add_filter ( std::string value );
 
     const std::list<Note *> &get_filtered_notes () const
     {
         return start_notes;
-    }
-
-    unsigned int count ()
-    {
-       return start_notes.size();
     }
 };
 #endif // __FILTER_H__

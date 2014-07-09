@@ -1,19 +1,52 @@
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <fstream>
+#include <sstream>
 #include <settings.h>
+
+void Settings::read_config_file()
+{
+    // Create path
+    std::string homedir = getenv ( "HOME" );
+    if(homedir.empty()) {
+        return;
+    }
+    std::string path = homedir+dir_separator+".notesccrc";
+    std::ifstream infile(path);
+    if(infile.is_open())
+    {
+        std::string line;
+        while (std::getline(infile, line))
+        {
+            if(line.empty() || line[0] == '#') continue;
+            auto sep_pos = line.find_first_of ( '=');
+            if(sep_pos != std::string::npos)
+            {
+                auto key = line.substr(0, sep_pos);
+                auto value = line.substr(sep_pos+1,std::string::npos);
+                if(key == "EDITOR" ){
+                    this->editor = value;
+                } else if (key == "REPOSITORY" ) {
+                    this->repo_path = value;
+                } else if (key == "HTML_VIEWER" ) {
+                    this->html_viewer = value;
+                }
+            }
+        }
+        infile.close();
+    }
+}
+
 
 Settings::Settings()
 {
-    if ( xdgInitHandle ( &xdg_handle ) == NULL ) {
-        fprintf ( stderr, "Failed to initialize XDG\n" );
-        exit ( EXIT_FAILURE );
-    }
+    read_config_file();
 }
 
 Settings::~Settings()
 {
-    xdgWipeHandle ( &xdg_handle );
 }
 
 const std::string &Settings::get_repository ()
@@ -47,4 +80,13 @@ const std::string &Settings::get_editor ()
     }
 
     return editor;
+}
+
+const std::string &Settings::get_html_viewer ()
+{
+    if ( html_viewer.empty() ) {
+            // fallback
+            html_viewer = "xdg-open";
+    }
+    return html_viewer;
 }

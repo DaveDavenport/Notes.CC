@@ -6,6 +6,12 @@
 
 #include <Filter.h>
 
+NotesFilter::NotesFilter( std::vector< Note *> notes )
+{
+    // Copy the list!
+    start_notes = std::list<Note *>(notes.begin(),notes.end());
+}
+
 void NotesFilter::add_filter ( std::string value )
 {
     for ( auto iter = start_notes.begin (); iter != start_notes.end (); iter++ ) {

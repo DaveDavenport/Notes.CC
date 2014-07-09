@@ -411,12 +411,12 @@ private:
 
         // Get filtered notes.
         auto fnotes = filter.get_filtered_notes ();
-        if ( filter.count () == 0 ) {
+        if ( fnotes.size() == 0 ) {
             return nullptr;
         }
 
         // If one note is remaining, pick that one
-        else if ( filter.count () == 1 ) {
+        else if ( fnotes.size () == 1 ) {
             return *(fnotes.begin());
         }
 

@@ -13,10 +13,6 @@ PREFIX=~/.local/
 LIB2_CFLAGS:=$(shell pkg-config --cflags libgit2)
 LIB2_LIBS:=$(shell pkg-config --libs libgit2)
 
-# xdg basedir
-XDG_CFLAGS:=$(shell pkg-config --cflags libxdg-basedir)
-XDG_LIBS:=$(shell pkg-config --libs libxdg-basedir)
-
 READLINE_CFLAGS:=
 READLINE_LIBS:= -lreadline
 
@@ -29,10 +25,9 @@ CXXFLAGS=-std=c++11 -O3 -g3 -Wall -Wextra -Wno-missing-field-initializers\
          -Iinclude/\
          $(LIB2_CFLAGS)\
          $(READLINE_CFLAGS)\
-         $(MARKDOWN_CFLAGS)\
-         $(XDG_CFLAGS)
+         $(MARKDOWN_CFLAGS)
 
-LDLIBS=$(LIB2_LIBS) $(READLINE_LIBS) $(MARKDOWN_LIBS) $(XDG_LIBS) 
+LDLIBS=$(LIB2_LIBS) $(READLINE_LIBS) $(MARKDOWN_LIBS)
 
 all: $(OUT)
 
