@@ -1,0 +1,16 @@
+##
+# Editor command.
+# The editor should not fork to the background.
+# So f.e. gvim should use gvim-f
+##
+EDITOR=gvim -f
+
+##
+# Git directory containing the notes.
+##
+REPOSITORY=/home/qball/Notes2/
+
+##
+# HTML Viewer
+##
+HTML_VIEWER=w3m
