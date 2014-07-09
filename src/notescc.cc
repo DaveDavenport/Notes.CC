@@ -59,7 +59,7 @@ const char * commands[] =
 
 /**
  * This project is written in C++, but tries to stick closer to C.
- * Classes, list, strings are ok.. Templates are already doubtful.
+ * Classes, list, strings are ok.. Templates only when it safes duplication.
  */
 
 
@@ -350,8 +350,8 @@ private:
     {
         return "";
     }
-
-    void display_notes ( const std::vector<Note *> & view_notes )
+    template < class T>
+    void display_notes ( const T view_notes )
     {
         TableView view;
 
@@ -386,6 +386,65 @@ private:
         view.print ();
     }
 
+
+
+    Note * get_note ( int &cargs, int argc, char ** argv )
+    {
+        if ( argc == 1 ) {
+            // Get index.
+            try {
+                unsigned int nindex = std::stoul ( argv[0] );
+                if ( nindex > 0 && nindex <= last_note_id && notes[nindex - 1] != nullptr ) {
+                    cargs++;
+                    return notes[nindex - 1];
+                }
+                notes_print_error ( "Invalid note id: %d\n", nindex );
+            } catch ( ... ) {
+            }
+        }
+
+        NotesFilter filter ( this->notes );
+        for ( int iter=0; iter < argc; iter++ ) {
+            filter.add_filter ( argv[iter] );
+            cargs++;
+        }
+
+        // Get filtered notes.
+        auto fnotes = filter.get_filtered_notes ();
+        if ( filter.count () == 0 ) {
+            return nullptr;
+        }
+
+        // If one note is remaining, pick that one
+        else if ( filter.count () == 1 ) {
+            return *(fnotes.begin());
+        }
+
+        while ( true ) {
+            this->display_notes ( fnotes );
+
+            char* resp = readline ( "Enter note id: " );
+            if ( resp ) {
+                // Quit
+                if ( resp[0] == 'q' ) {
+                    free ( resp );
+                    return nullptr;
+                }
+                try {
+                    unsigned int nindex = std::stoul ( resp );
+                    if ( nindex > 0 && nindex <= last_note_id && this->notes[nindex - 1] != nullptr ) {
+                        free ( resp );
+                        return this->notes[nindex - 1];
+                    }
+                }catch ( ... ) { }
+
+                notes_print_error ( "Invalid note id: %s\n", resp );
+                free ( resp );
+            }
+        }
+        return nullptr;
+    }
+
     /**
      * @param argc Number of renaming commandline options.
      * @param argv Remaining commandline options.
@@ -410,64 +469,6 @@ private:
         }
 
         return cargs;
-    }
-
-
-    Note * get_note ( int &cargs, int argc, char ** argv )
-    {
-        if ( argc == 1 ) {
-            // Get index.
-            try {
-                unsigned int nindex = std::stoul ( argv[0] );
-                if ( nindex > 0 && nindex <= last_note_id && notes[nindex - 1] != nullptr ) {
-                    cargs++;
-                    return notes[nindex - 1];
-                }
-                notes_print_error ( "Invalid note id: %d\n", nindex );
-            } catch ( ... ) {
-            }
-        }
-
-        NotesFilter filter ( this->notes );
-        for ( int iter; iter < argc; iter++ ) {
-            filter.add_filter ( argv[iter] );
-            cargs++;
-        }
-
-        // Get filtered notes.
-        auto notes = filter.get_filtered_notes ();
-        if ( filter.count () == 0 ) {
-            return nullptr;
-        }
-
-        // If one note is remaining, pick that one
-        else if ( filter.count () == 1 ) {
-            return notes[0];
-        }
-
-        while ( true ) {
-            this->display_notes ( notes );
-
-            char* resp = readline ( "Enter note id: " );
-            if ( resp ) {
-                // Quit
-                if ( resp[0] == 'q' ) {
-                    free ( resp );
-                    return nullptr;
-                }
-                try {
-                    unsigned int nindex = std::stoul ( resp );
-                    if ( nindex > 0 && nindex <= last_note_id && notes[nindex - 1] != nullptr ) {
-                        free ( resp );
-                        return notes[nindex - 1];
-                    }
-                }catch ( ... ) { }
-
-                notes_print_error ( "Invalid note id: %s\n", resp );
-                free ( resp );
-            }
-        }
-        return nullptr;
     }
 
     /**
@@ -805,7 +806,7 @@ private:
                 index += this->command_projects ( argc - index, &argv[index] );
             }
             else {
-                notes_print_error ( "Invalid argument: '%s'\n", argv[index] );
+                notes_print_error ( "Invalid command: '%s'\n", argv[index] );
                 return;
             }
         }

@@ -1,32 +1,28 @@
 #ifndef __FILTER_H__
 #define __FILTER_H__
+#include <vector>
+#include <list>
 class NotesFilter
 {
 private:
-    std::vector<Note *> start_notes;
+    std::list<Note *> start_notes;
 public:
     NotesFilter( std::vector< Note *> notes )
     {
         // Copy the list!
-        start_notes = notes;
+        start_notes = std::list<Note *>(notes.begin(),notes.end());
     }
 
     void add_filter ( std::string value );
 
-    const std::vector<Note *> &get_filtered_notes () const
+    const std::list<Note *> &get_filtered_notes () const
     {
         return start_notes;
     }
 
     unsigned int count ()
     {
-        unsigned int retv = 0;
-        for ( auto n : start_notes ) {
-            if ( n != nullptr ) {
-                retv++;
-            }
-        }
-        return retv;
+       return start_notes.size();
     }
 };
 #endif // __FILTER_H__

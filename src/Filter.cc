@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
-#include <vector>
 #include <Project.h>
 #include <Note.h>
 
@@ -31,4 +30,6 @@ void NotesFilter::add_filter ( std::string value )
             *iter = nullptr;
         }
     }
+    // Remove empty items.
+    start_notes.remove(nullptr);
 }
