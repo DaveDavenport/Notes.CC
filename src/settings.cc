@@ -60,7 +60,7 @@ const std::string &Settings::get_repository ()
 
         // Fallback.
         std::string homedir = getenv ( "HOME" );
-        repo_path = homedir + dir_separator + "Notes2";
+        repo_path = homedir + dir_separator + "Notes";
     }
 
     return repo_path;
