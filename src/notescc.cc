@@ -170,8 +170,9 @@ private:
         return diff_time < 0;
     }
 
-
-
+    /**
+     * Repository interaction functions.
+     */
     git_commit * repository_get_last_commit ( )
     {
         int        rc;
@@ -281,11 +282,10 @@ private:
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
             if(e != nullptr) {
-                notes_print_error ( "Failed to load remote 'origin': %s\n", e->message );
+                notes_print_error ( "Failed to access remote 'origin': %s\n", e->message );
             }else {
-                notes_print_error ( "Failed to load remote 'origin'.\n");
+                notes_print_error ( "Failed to access remote 'origin'.\n");
                 notes_print_error ( "please check that fetching works.\n");
-                notes_print_error ( "Note: SSH remotes should use the ssh:// url syntax.\n");
             }
             git_remote_free ( remote );
             return false;
@@ -295,6 +295,7 @@ private:
     }
     bool repository_push ()
     {
+        notes_print_info("Connecting to 'origin'\n");
         git_remote *remote = nullptr;
         int        rc      = git_remote_load ( &remote, git_repo, "origin" );
         if ( rc != 0 ) {
@@ -311,16 +312,15 @@ private:
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
             if(e != nullptr) {
-                notes_print_error ( "Failed to load remote 'origin': %s\n", e->message );
+                notes_print_error ( "Failed to access remote 'origin': %s\n", e->message );
             }else {
-                notes_print_error ( "Failed to load remote 'origin'.\n");
-                notes_print_error ( "please check that fetching works.\n");
-                notes_print_error ( "Note: SSH remotes should use the ssh:// url syntax.\n");
+                notes_print_error ( "Failed to access remote 'origin'.\n");
+                notes_print_error ( "please check that pushing works.\n");
             }
             git_remote_free ( remote );
             return false;
         }
-
+        notes_print_info ( "Pushing data\n" );
         git_push *out;
         rc = git_push_new ( &out, remote );
         if ( rc != 0 ) {
@@ -370,7 +370,7 @@ private:
         git_remote_disconnect ( remote );
         git_remote_free ( remote );
 
-
+        notes_print_info ("Fetching from 'origin'\n");
         return repository_fetch ();
     }
     bool repository_pull ( )
@@ -381,9 +381,12 @@ private:
             repository_commit_changes ();
             git_changed = false;
         }
+        notes_print_info("Fetching from 'origin'\n");
         if ( !repository_fetch () ) {
             return false;
         }
+
+        notes_print_info("Validating merge\n");
 
         git_reference *headref = NULL;
         int           ret      = git_reference_lookup ( &headref, git_repo, "FETCH_HEAD" );
@@ -477,6 +480,7 @@ private:
             this->Load ();
         }
         else if ( ( analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE ) > 0 ) {
+            notes_print_info ( "No change required.\n");
         }
         else {
             notes_print_error ( "The repository cannot be fast forwarded, please do a merge first\n" );
