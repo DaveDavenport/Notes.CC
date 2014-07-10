@@ -34,3 +34,17 @@ At the moment only fast forward merges are supported.
 NOTE: libgit2 does not support ssh aliases as push targets, so use the following syntax:
 
     ssh://<user@><host><:port>/<Path>/
+
+Auto-complete
+-------------
+
+Add the following to your bashrc:
+
+    _notescc()
+    {
+        curw="${COMP_WORDS[COMP_CWORD]}"
+        unset COMP_WORDS[$COMP_CWORD]
+        COMPREPLY=($(compgen -W '$(notescc --complete ${COMP_WORDS[@]:1})' -- $curw))
+    }
+
+    complete -F _notescc notescc
