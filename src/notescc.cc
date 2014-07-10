@@ -621,14 +621,13 @@ private:
 
 
 
-    Note * get_note ( int &cargs, int argc, char ** argv )
+    Note * get_note ( int argc, char ** argv )
     {
         if ( argc == 1 ) {
             // Get index.
             try {
                 unsigned int nindex = std::stoul ( argv[0] );
                 if ( nindex > 0 && nindex <= last_note_id && notes[nindex - 1] != nullptr ) {
-                    cargs++;
                     return notes[nindex - 1];
                 }
                 notes_print_error ( "Invalid note id: %d\n", nindex );
@@ -639,7 +638,6 @@ private:
         NotesFilter filter ( this->notes );
         for ( int iter = 0; iter < argc; iter++ ) {
             filter.add_filter ( argv[iter] );
-            cargs++;
         }
 
         // Get filtered notes.
@@ -688,11 +686,10 @@ private:
      */
     int command_edit ( int argc, char ** argv )
     {
-        int  cargs = 0;
-        Note *note = this->get_note ( cargs, argc, argv );
+        Note *note = this->get_note ( argc, argv );
         if ( note == nullptr ) {
             notes_print_error ( "No note selected\n" );
-            return cargs;
+            return argc;
         }
         // Edit the note.
         if ( note->edit () ) {
@@ -701,7 +698,7 @@ private:
             repository_stage_file ( path );
         }
 
-        return cargs;
+        return argc;
     }
 
     /**
@@ -714,15 +711,14 @@ private:
      */
     int command_view ( int argc, char ** argv )
     {
-        int  cargs = 0;
-        Note *note = this->get_note ( cargs, argc, argv );
+        Note *note = this->get_note ( argc, argv );
         if ( note == nullptr ) {
             notes_print_error ( "No note selected\n" );
-            return cargs;
+            return argc;
         }
 
         note->view ();
-        return cargs;
+        return argc;
     }
 
     /**
@@ -735,15 +731,14 @@ private:
      */
     int command_cat ( int argc, char ** argv )
     {
-        int  cargs = 0;
-        Note *note = this->get_note ( cargs, argc, argv );
+        Note *note = this->get_note ( argc, argv );
         if ( note == nullptr ) {
             notes_print_error ( "No note selected\n" );
-            return cargs;
+            return argc;
         }
 
         note->cat ();
-        return cargs;
+        return argc;
     }
 
     /**
@@ -771,16 +766,12 @@ private:
             notes_print_error ( "Export requires three arguments: <note id> <type> <export_file>\n" );
             return 0;
         }
-        unsigned int nindex = 0;
-        try {
-            nindex = std::stoul ( argv[0] );
-        } catch ( ... ) {
-        }
-        if ( nindex < 1 || nindex > last_note_id || notes[nindex - 1] == nullptr ) {
-            notes_print_error ( "Invalid note id: %d\n", nindex );
+
+        Note *note = get_note(1, argv);
+        if( note == nullptr ) {
+            notes_print_error ("No note specified\n");
             return 3;
         }
-        Note        *note = notes[nindex - 1];
 
         std::string export_path = argv[2];
         std::string format      = argv[1];
@@ -800,41 +791,34 @@ private:
         return 3;
     }
 
+private:
     static int cred_acquire_cb ( git_cred** cred, const char*,
                                  const char *user, unsigned int, void* )
     {
         return git_cred_ssh_key_from_agent ( cred, user );
     }
-private:
 
     int command_move ( int argc, char **argv )
     {
-        int iter = 0;
         if ( argc < 2 ) {
             notes_print_error ( "Move requires two arguments: <note id>  <project path>\n" );
-            return iter;
+            return argc;
         }
-        iter++;
-        unsigned int nindex = 0;
-        try {
-            nindex = std::stoul ( argv[0] );
-        } catch ( ... ) {
-        }
-        if ( nindex < 1 || nindex > last_note_id || notes[nindex - 1] == nullptr ) {
-            notes_print_error ( "Invalid note id: %d\n", nindex );
-            return iter;
-        }
-        Note *note = notes[nindex - 1];
 
-        iter++;
+        Note *note = get_note(1, argv);
+        if( note == nullptr ) {
+            notes_print_error ("No note specified\n");
+            return 2;
+        }
+
         std::string name = argv[1];
         Project     *p   = this->get_or_create_project_from_name ( name );
         if ( p == nullptr ) {
-            return iter;
+            return 2;
         }
         if ( p == note->get_project () ) {
             notes_print_warning ( "Destination same as source: Ignoring.\n" );
-            return iter;
+            return 2;
         }
         std::string old_path = note->get_relative_path ();
         if ( note->move ( p ) ) {
@@ -842,7 +826,7 @@ private:
             this->repository_stage_file ( new_path );
             this->repository_delete_file ( old_path );
         }
-        return iter;
+        return 2;
     }
 
     static void command_projects_add_entry ( Project *p, TableView &view, unsigned int &row )
@@ -931,11 +915,10 @@ private:
 
     int command_delete ( int argc, char **argv )
     {
-        int  cargs = 0;
-        Note *note = this->get_note ( cargs, argc, argv );
+        Note *note = this->get_note ( argc, argv );
         if ( note == nullptr ) {
             notes_print_error ( "No note selected\n" );
-            return cargs;
+            return argc;
         }
 
         // Delete the file from internal structure and working directory.
@@ -947,7 +930,7 @@ private:
             delete note;
             notes[nindex] = nullptr;
         }
-        return cargs;
+        return argc;
     }
     int command_add ( int argc, char **argv )
     {
