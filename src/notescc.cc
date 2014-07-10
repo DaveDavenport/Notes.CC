@@ -923,13 +923,25 @@ private:
 
         // Delete the file from internal structure and working directory.
         unsigned int nindex = note->get_id () - 1;
-        if ( note->del () ) {
-            // Tell git the file is removed.
-            repository_delete_file ( note->get_relative_path () );
-            // Delete the entry from the list.
-            delete note;
-            notes[nindex] = nullptr;
+
+        notes_print_warning("Are you sure you want to delete note with title: '%s'\n",
+                note->get_title().c_str());
+        char *response = readline("(y/n): ");
+        if(response && strcmp(response, "y")== 0) {
+            notes_print_warning("Deleting note\n");
+            if ( note->del () ) {
+                // Tell git the file is removed.
+                repository_delete_file ( note->get_relative_path () );
+                // Delete the entry from the list.
+                delete note;
+                notes[nindex] = nullptr;
+            }
         }
+        else
+        {
+            notes_print_info("Aborting delete.\n");
+        }
+        free(response);
         return argc;
     }
     int command_add ( int argc, char **argv )
