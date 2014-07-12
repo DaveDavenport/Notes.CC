@@ -14,7 +14,7 @@ AM_CXXFLAGS=\
     -I$(top_builddir)/
 
 notescc_SOURCES=\
-    src/notescc.cc\
+    src/main.cc\
     src/Note.cc\
     src/Project.cc\
     src/Colors.cc\

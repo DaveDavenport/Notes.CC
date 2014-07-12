@@ -281,11 +281,12 @@ private:
         rc = git_remote_fetch ( remote, NULL, NULL );
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
-            if(e != nullptr) {
+            if ( e != nullptr ) {
                 notes_print_error ( "Failed to access remote 'origin': %s\n", e->message );
-            }else {
-                notes_print_error ( "Failed to access remote 'origin'.\n");
-                notes_print_error ( "please check that fetching works.\n");
+            }
+            else {
+                notes_print_error ( "Failed to access remote 'origin'.\n" );
+                notes_print_error ( "please check that fetching works.\n" );
             }
             git_remote_free ( remote );
             return false;
@@ -295,7 +296,7 @@ private:
     }
     bool repository_push ()
     {
-        notes_print_info("Connecting to 'origin'\n");
+        notes_print_info ( "Connecting to 'origin'\n" );
         git_remote *remote = nullptr;
         int        rc      = git_remote_load ( &remote, git_repo, "origin" );
         if ( rc != 0 ) {
@@ -311,11 +312,12 @@ private:
         rc = git_remote_connect ( remote, GIT_DIRECTION_PUSH );
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
-            if(e != nullptr) {
+            if ( e != nullptr ) {
                 notes_print_error ( "Failed to access remote 'origin': %s\n", e->message );
-            }else {
-                notes_print_error ( "Failed to access remote 'origin'.\n");
-                notes_print_error ( "please check that pushing works.\n");
+            }
+            else {
+                notes_print_error ( "Failed to access remote 'origin'.\n" );
+                notes_print_error ( "please check that pushing works.\n" );
             }
             git_remote_free ( remote );
             return false;
@@ -370,7 +372,7 @@ private:
         git_remote_disconnect ( remote );
         git_remote_free ( remote );
 
-        notes_print_info ("Fetching from 'origin'\n");
+        notes_print_info ( "Fetching from 'origin'\n" );
         return repository_fetch ();
     }
     bool repository_pull ( )
@@ -381,12 +383,12 @@ private:
             repository_commit_changes ();
             git_changed = false;
         }
-        notes_print_info("Fetching from 'origin'\n");
+        notes_print_info ( "Fetching from 'origin'\n" );
         if ( !repository_fetch () ) {
             return false;
         }
 
-        notes_print_info("Validating merge\n");
+        notes_print_info ( "Validating merge\n" );
 
         git_reference *headref = NULL;
         int           ret      = git_reference_lookup ( &headref, git_repo, "FETCH_HEAD" );
@@ -480,7 +482,7 @@ private:
             this->Load ();
         }
         else if ( ( analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE ) > 0 ) {
-            notes_print_info ( "No change required.\n");
+            notes_print_info ( "No change required.\n" );
         }
         else {
             notes_print_error ( "The repository cannot be fast forwarded, please do a merge first\n" );
@@ -767,9 +769,9 @@ private:
             return 0;
         }
 
-        Note *note = get_note(1, argv);
-        if( note == nullptr ) {
-            notes_print_error ("No note specified\n");
+        Note *note = get_note ( 1, argv );
+        if ( note == nullptr ) {
+            notes_print_error ( "No note specified\n" );
             return 3;
         }
 
@@ -805,9 +807,9 @@ private:
             return argc;
         }
 
-        Note *note = get_note(1, argv);
-        if( note == nullptr ) {
-            notes_print_error ("No note specified\n");
+        Note *note = get_note ( 1, argv );
+        if ( note == nullptr ) {
+            notes_print_error ( "No note specified\n" );
             return 2;
         }
 
@@ -924,11 +926,11 @@ private:
         // Delete the file from internal structure and working directory.
         unsigned int nindex = note->get_id () - 1;
 
-        notes_print_warning("Are you sure you want to delete note with title: '%s'\n",
-                note->get_title().c_str());
-        char *response = readline("(y/n): ");
-        if(response && strcmp(response, "y")== 0) {
-            notes_print_warning("Deleting note\n");
+        notes_print_warning ( "Are you sure you want to delete note with title: '%s'\n",
+                              note->get_title ().c_str () );
+        char *response = readline ( "(y/n): " );
+        if ( response && strcmp ( response, "y" ) == 0 ) {
+            notes_print_warning ( "Deleting note\n" );
             if ( note->del () ) {
                 // Tell git the file is removed.
                 repository_delete_file ( note->get_relative_path () );
@@ -937,11 +939,10 @@ private:
                 notes[nindex] = nullptr;
             }
         }
-        else
-        {
-            notes_print_info("Aborting delete.\n");
+        else{
+            notes_print_info ( "Aborting delete.\n" );
         }
-        free(response);
+        free ( response );
         return argc;
     }
     int command_add ( int argc, char **argv )

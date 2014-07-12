@@ -1,6 +1,6 @@
 AC_INIT([notecc], [0.14.7], [qball@gmpclient.org])
 
-AC_CONFIG_SRCDIR([src/notescc.cc])
+AC_CONFIG_SRCDIR([src/main.cc])
 
 ##
 # Setup automake to be silent and in foreign mode.
