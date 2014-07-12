@@ -34,3 +34,9 @@ notescc_SOURCES=\
 
 indent: ${notescc_SOURCES}
 	uncrustify -c ${top_srcdir}/data/uncrustify.cfg --replace $^
+
+
+##
+# Extra files to pack in distribution
+##
+EXTRA_DIST=notesccrc
