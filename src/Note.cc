@@ -308,7 +308,7 @@ void Note::view ()
     }
 
     char *path;
-    if ( asprintf ( &path, "/tmp/notecc-%u.xhtml", this->hash ) <= 0 ) {
+    if ( asprintf ( &path, "/tmp/notescc-%u.xhtml", this->hash ) <= 0 ) {
         notes_print_error ( "Failed to create note tmp path\n" );
         return;
     }
@@ -398,7 +398,7 @@ bool Note::edit ()
     // Create temp filename.
     // This is used to store the edited note.
     char *path;
-    if ( asprintf ( &path, "/tmp/notecc-%u.md", this->hash ) <= 0 ) {
+    if ( asprintf ( &path, "/tmp/notescc-%u.md", this->hash ) <= 0 ) {
         notes_print_error ( "Failed to create note tmp path\n" );
         return false;
     }

@@ -271,7 +271,7 @@ private:
                                     "HEAD",
                                     sign, sign,
                                     NULL,
-                                    "NoteCC autocommit.\n",
+                                    "NotesCC autocommit.\n",
                                     tree_cmt, entries, commits );
                 git_tree_free ( tree_cmt );
                 if ( last_commit ) {
