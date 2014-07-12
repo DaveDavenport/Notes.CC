@@ -612,6 +612,31 @@ private:
     {
         return "";
     }
+
+
+    /**
+     * Get the index based on id.
+     */
+    int get_note_index(unsigned int id)
+    {
+        // Currently id is index+1
+        if(id < 1 || id > last_note_id) {
+                printf("%lu %lu\n", id, last_note_id);
+            return -1;
+        }
+        // Check if note exists
+        if(notes[id-1] == nullptr) {
+            printf("no at entry: %p\n", notes[id-1]);
+            return -1;
+        }
+        if(notes[id-1]->get_id() != id) {
+            printf("%lu %lu\n", notes[id-1]->get_id(), id);
+            return -1;
+        }
+        // Valid id.
+        return id - 1;
+    }
+
     template < class T>
     void display_notes ( const T view_notes )
     {
@@ -655,9 +680,10 @@ private:
         if ( argc == 1 ) {
             // Get index.
             try {
-                unsigned int nindex = std::stoul ( argv[0] );
-                if ( nindex > 0 && nindex <= last_note_id && notes[nindex - 1] != nullptr ) {
-                    return notes[nindex - 1];
+                unsigned int note_id = std::stoul ( argv[0] );
+                int nindex = this->get_note_index(note_id);
+                if ( nindex >= 0 ) {
+                    return notes[nindex];
                 }
                 notes_print_error ( "Invalid note id: %d\n", nindex );
             } catch ( ... ) {
@@ -691,10 +717,11 @@ private:
                     return nullptr;
                 }
                 try {
-                    unsigned int nindex = std::stoul ( resp );
-                    if ( nindex > 0 && nindex <= last_note_id && this->notes[nindex - 1] != nullptr ) {
+                    unsigned int note_id = std::stoul ( resp );
+                    int nindex = this->get_note_index(note_id);
+                    if ( nindex >= 0  ) {
                         free ( resp );
-                        return this->notes[nindex - 1];
+                        return this->notes[nindex];
                     }
                 }catch ( ... ) { }
 
@@ -951,7 +978,13 @@ private:
         }
 
         // Delete the file from internal structure and working directory.
-        unsigned int nindex = note->get_id () - 1;
+        int nindex = this->get_note_index(note->get_id ());
+
+        if(nindex < 0) {
+            notes_print_error("Internal error, note with id: %u does not exist.\n",
+                    nindex);
+            return argc;
+        }
 
         notes_print_warning ( "Are you sure you want to delete note with title: '%s'\n",
                               note->get_title ().c_str () );
