@@ -3,3 +3,13 @@
 notescc
 *.*~
 build/
+
+# Build
+missing
+depcomp
+configure
+Makefile.in
+aclocal.m4
+autom4te.cache/
+compile
+install-sh
