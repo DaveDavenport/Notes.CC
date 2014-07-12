@@ -47,7 +47,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#include <settings.h>
+#include <Settings.h>
 
 struct timespec _tick_start;
 struct timespec _tick_stop;

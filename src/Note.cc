@@ -42,7 +42,7 @@
 #include <Project.h>
 #include <Note.h>
 
-#include <settings.h>
+#include <Settings.h>
 
 #include <Colors.h>
 

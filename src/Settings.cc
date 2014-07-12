@@ -30,7 +30,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
-#include <settings.h>
+#include <Settings.h>
 
 void Settings::read_config_file ()
 {

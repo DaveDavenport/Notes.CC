@@ -20,11 +20,11 @@ notescc_SOURCES=\
     src/Colors.cc\
     src/Filter.cc\
     src/TableView.cc\
-    src/settings.cc\
+    src/Settings.cc\
     include/Note.h\
     include/Colors.h\
     include/Project.h\
-    include/settings.h\
+    include/Settings.h\
     include/TableView.h\
     include/Filter.h
 
