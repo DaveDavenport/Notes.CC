@@ -1,4 +1,17 @@
+Compilation
+-----------
 
+Generate the build infrastructure:
+
+    autoreconf -i
+
+Build the tool:
+
+    mkdir build
+    cd build
+    ../configure
+    make
+    make install
 
 First Use
 ---------

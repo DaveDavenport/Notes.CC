@@ -134,10 +134,8 @@ Note::Note( Project *project, Settings *settings, const char *filename ) :
 
     // Calculate HASH of note.
     // This is used to see if the note has changed.
-    // TODO: This is not needed at startup, if it gets to slow, move it.
-#ifndef NO_HASH
     this->hash = this->calculate_crc ( fp );
-#endif
+
     fclose ( fp );
 
     project->add_note ( this );
