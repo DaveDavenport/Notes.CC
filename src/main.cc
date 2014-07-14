@@ -40,6 +40,7 @@
 #include <Note.h>
 #include <Colors.h>
 #include <TableView.h>
+#include <IDStorage.h>
 #include <Filter.h>
 
 #include <git2.h>
@@ -95,131 +96,7 @@ const char * commands[] =
  */
 
 
-// This class should provide stable id's for notes per pc.
-// IDs should not be stored in the note itself as it can lead to
-// conflicts when editing notes on multiple pc's.
-// TODO: After a pull we want to 'GC' this list.
-// TODO: Move to header file.
-// e.g. check for deleted notes.
-class IDStorage
-{
-private:
-    std::string                          cache_path;
-    std::map <unsigned int, std::string> idmap;
-    bool                                 changed = false;
 
-    // Format:
-    // <id> <path>
-    void read ()
-    {
-        FILE *fp = fopen ( cache_path.c_str (), "r" );
-        char buffer[1024];
-
-        if ( fp == nullptr ) {
-            return;
-        }
-
-        while ( fgets ( buffer, 1024, fp ) != nullptr ) {
-            char         *endpt = nullptr;
-            unsigned int id     = (unsigned int) strtoul ( buffer, &endpt, 10 );
-            if ( endpt != nullptr && *endpt != '\n' ) {
-                endpt++;
-                endpt[strlen ( endpt ) - 1] = '\0';
-                idmap[id]                   = ( endpt );
-            }
-        }
-        fclose ( fp );
-    }
-
-    void write ()
-    {
-        FILE *fp = fopen ( cache_path.c_str (), "w" );
-        if ( fp == nullptr ) {
-            notes_print_error ( "Failed to open id cache for writing: %s\n",
-                                strerror ( errno ) );
-            return;
-        }
-        for ( auto& x : idmap ) {
-            fprintf ( fp, "%lu=%s\n", x.first, x.second.c_str () );
-        }
-
-        fclose ( fp );
-    }
-public:
-    IDStorage ( )
-    {
-        std::string homedir = getenv ( "HOME" );
-        if ( homedir.empty () ) {
-            notes_print_error ( "Could not find home directory.\n" );
-            return;
-        }
-        // TODO: Better way to get directory separator.
-        // TODO: Use XDG_PATH to get cache directory.
-        this->cache_path = homedir + "/" + ".notescc.idcache";
-
-        read ();
-    }
-    ~IDStorage ()
-    {
-        if ( changed ) {
-            write ();
-        }
-    }
-
-    /**
-     * Returns an ID for a given note path.
-     * Creates a new id when not found.
-     */
-    unsigned int get_id ( const std::string path )
-    {
-        // Not efficient, but only done once at loading.
-        // TODO: O(n^2)
-        for ( auto& iter : idmap ) {
-            if ( iter.second == path ) {
-                return iter.first;
-            }
-        }
-        // Create new id.
-        unsigned int id = 1;
-        while ( true ) {
-            if ( idmap.find ( id ) == idmap.end () ) {
-                idmap[id] = path;
-                changed   = true;
-                return id;
-            }
-            id++;
-        }
-    }
-    /**
-     * Move the id to new path.
-     */
-    void move_id ( const unsigned int id, const std::string path_new )
-    {
-        if ( idmap.find ( id ) != idmap.end () ) {
-            idmap[id] = path_new;
-            changed   = true;
-        }
-    }
-    void delete_id ( const unsigned int id )
-    {
-        if ( idmap.find ( id ) != idmap.end () ) {
-            idmap.erase ( id );
-            changed = true;
-        }
-    }
-    /**
-     * Clears the list and refills it.
-     */
-    void gc (std::vector<Note *> notes)
-    {
-        idmap.clear();
-        for ( auto note: notes ) {
-            idmap[note->get_id()] = note->get_relative_path();
-        }
-        changed = true;
-        notes_print_info("Vacuumed the id Cache.\n");
-    }
-};
 
 
 // The Main object, this is also the root node.

@@ -19,13 +19,15 @@ notescc_SOURCES=\
     src/Project.cc\
     src/Colors.cc\
     src/Filter.cc\
-    src/TableView.cc\
     src/Settings.cc\
+    src/IDStorage.cc\
+    src/TableView.cc\
     include/Note.h\
     include/Colors.h\
     include/Project.h\
     include/Settings.h\
     include/TableView.h\
+    include/IDStorage.h\
     include/Filter.h
 
 ##
