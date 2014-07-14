@@ -207,7 +207,20 @@ public:
             changed = true;
         }
     }
+    /**
+     * Clears the list and refills it.
+     */
+    void gc (std::vector<Note *> notes)
+    {
+        idmap.clear();
+        for ( auto note: notes ) {
+            idmap[note->get_id()] = note->get_relative_path();
+        }
+        changed = true;
+        notes_print_info("Vacuumed the id Cache.\n");
+    }
 };
+
 
 // The Main object, this is also the root node.
 class NotesCC : public Project
@@ -621,6 +634,10 @@ private:
 
             this->clear ();
             this->Load ();
+            // This reloads the id storage with the current
+            // Available notes.
+            // Basically deleting old unused id's.
+            this->storage.gc(this->notes);
         }
         else if ( ( analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE ) > 0 ) {
             notes_print_info ( "No change required.\n" );
@@ -1299,6 +1316,10 @@ private:
             else if ( strcmp ( argv[index], "push" ) == 0 ) {
                 index++;
                 repository_push ();
+            }
+            else if ( strcmp ( argv[index], "gc" ) == 0 ) {
+                index++;
+                storage.gc(this->notes);
             }
             else {
                 notes_print_error ( "Invalid command: '%s'\n", argv[index] );
