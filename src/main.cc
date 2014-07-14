@@ -34,6 +34,7 @@
 #include <string>
 #include <cstring>
 #include <list>
+#include <map>
 
 #include <Project.h>
 #include <Note.h>
@@ -94,12 +95,124 @@ const char * commands[] =
  */
 
 
+// This class should provide stable id's for notes per pc.
+// IDs should not be stored in the note itself as it can lead to
+// conflicts when editing notes on multiple pc's.
+// TODO: After a pull we want to 'GC' this list.
+// TODO: Move to header file.
+// e.g. check for deleted notes.
+class IDStorage
+{
+private:
+    std::string                          cache_path;
+    std::map <unsigned int, std::string> idmap;
+    bool                                 changed = false;
+
+    // Format:
+    // <id> <path>
+    void read ()
+    {
+        FILE *fp = fopen ( cache_path.c_str (), "r" );
+        char buffer[1024];
+
+        if ( fp == nullptr ) {
+            return;
+        }
+
+        while ( fgets ( buffer, 1024, fp ) != nullptr ) {
+            char         *endpt = nullptr;
+            unsigned int id     = (unsigned int) strtoul ( buffer, &endpt, 10 );
+            if ( endpt != nullptr && *endpt != '\n' ) {
+                endpt++;
+                endpt[strlen ( endpt ) - 1] = '\0';
+                idmap[id]                   = ( endpt );
+            }
+        }
+        fclose ( fp );
+    }
+
+    void write ()
+    {
+        FILE *fp = fopen ( cache_path.c_str (), "w" );
+        if ( fp == nullptr ) {
+            notes_print_error ( "Failed to open id cache for writing: %s\n",
+                                strerror ( errno ) );
+            return;
+        }
+        for ( auto& x : idmap ) {
+            fprintf ( fp, "%lu=%s\n", x.first, x.second.c_str () );
+        }
+
+        fclose ( fp );
+    }
+public:
+    IDStorage ( )
+    {
+        std::string homedir = getenv ( "HOME" );
+        if ( homedir.empty () ) {
+            notes_print_error ( "Could not find home directory.\n" );
+            return;
+        }
+        // TODO: Better way to get directory separator.
+        // TODO: Use XDG_PATH to get cache directory.
+        this->cache_path = homedir + "/" + ".notescc.idcache";
+
+        read ();
+    }
+    ~IDStorage ()
+    {
+        if ( changed ) {
+            write ();
+        }
+    }
+
+    /**
+     * Returns an ID for a given note path.
+     * Creates a new id when not found.
+     */
+    unsigned int get_id ( const std::string path )
+    {
+        // Not efficient, but only done once at loading.
+        // TODO: O(n^2)
+        for ( auto& iter : idmap ) {
+            if ( iter.second == path ) {
+                return iter.first;
+            }
+        }
+        // Create new id.
+        unsigned int id = 1;
+        while ( true ) {
+            if ( idmap.find ( id ) == idmap.end () ) {
+                idmap[id] = path;
+                changed   = true;
+                return id;
+            }
+            id++;
+        }
+    }
+    /**
+     * Move the id to new path.
+     */
+    void move_id ( const unsigned int id, const std::string path_new )
+    {
+        if ( idmap.find ( id ) != idmap.end () ) {
+            idmap[id] = path_new;
+            changed   = true;
+        }
+    }
+    void delete_id ( const unsigned int id )
+    {
+        if ( idmap.find ( id ) != idmap.end () ) {
+            idmap.erase ( id );
+            changed = true;
+        }
+    }
+};
 
 // The Main object, this is also the root node.
 class NotesCC : public Project
 {
 private:
-    unsigned int        last_note_id = 0;
 // Root project.
     std::vector<Note *> notes;
 
@@ -107,6 +220,7 @@ private:
     git_index           * git_repo_index = nullptr;
     bool                git_changed      = false;
     Settings            settings;
+    IDStorage           storage;
 
 public:
     NotesCC( )  : Project ( "" )
@@ -594,7 +708,6 @@ private:
             delete project;
         }
         child_projects.clear ();
-        this->last_note_id = 0;
     }
 
 
@@ -617,24 +730,14 @@ private:
     /**
      * Get the index based on id.
      */
-    int get_note_index(unsigned int id)
+    int get_note_index ( unsigned int id )
     {
-        // Currently id is index+1
-        if(id < 1 || id > last_note_id) {
-                printf("%lu %lu\n", id, last_note_id);
-            return -1;
+        for ( unsigned int index = 0; index < notes.size (); index++ ) {
+            if ( notes[index]->get_id () == id ) {
+                return index;
+            }
         }
-        // Check if note exists
-        if(notes[id-1] == nullptr) {
-            printf("no at entry: %p\n", notes[id-1]);
-            return -1;
-        }
-        if(notes[id-1]->get_id() != id) {
-            printf("%lu %lu\n", notes[id-1]->get_id(), id);
-            return -1;
-        }
-        // Valid id.
-        return id - 1;
+        return -1;
     }
 
     template < class T>
@@ -681,7 +784,7 @@ private:
             // Get index.
             try {
                 unsigned int note_id = std::stoul ( argv[0] );
-                int nindex = this->get_note_index(note_id);
+                int          nindex  = this->get_note_index ( note_id );
                 if ( nindex >= 0 ) {
                     return notes[nindex];
                 }
@@ -718,7 +821,7 @@ private:
                 }
                 try {
                     unsigned int note_id = std::stoul ( resp );
-                    int nindex = this->get_note_index(note_id);
+                    int          nindex  = this->get_note_index ( note_id );
                     if ( nindex >= 0  ) {
                         free ( resp );
                         return this->notes[nindex];
@@ -881,6 +984,8 @@ private:
             std::string new_path = note->get_relative_path ();
             this->repository_stage_file ( new_path );
             this->repository_delete_file ( old_path );
+            // Move id
+            this->storage.move_id ( note->get_id (), new_path );
         }
         return 2;
     }
@@ -978,11 +1083,11 @@ private:
         }
 
         // Delete the file from internal structure and working directory.
-        int nindex = this->get_note_index(note->get_id ());
+        int nindex = this->get_note_index ( note->get_id () );
 
-        if(nindex < 0) {
-            notes_print_error("Internal error, note with id: %u does not exist.\n",
-                    nindex);
+        if ( nindex < 0 ) {
+            notes_print_error ( "Internal error, note with id: %u does not exist.\n",
+                                nindex );
             return argc;
         }
 
@@ -994,6 +1099,7 @@ private:
             if ( note->del () ) {
                 // Tell git the file is removed.
                 repository_delete_file ( note->get_relative_path () );
+                storage.delete_id ( note->get_id () );
                 // Delete the entry from the list.
                 delete note;
                 notes[nindex] = nullptr;
@@ -1025,7 +1131,7 @@ private:
 
         if ( n != nullptr ) {
             this->notes.push_back ( n );
-            n->set_id ( ++this->last_note_id );
+            n->set_id ( storage.get_id ( n->get_relative_path () ) );
             n->edit ();
             // Commit the result.
             auto path = n->get_relative_path ();
@@ -1240,7 +1346,7 @@ private:
 
         // Gives them UIDs.
         for ( auto note : this->notes ) {
-            note->set_id ( ++this->last_note_id );
+            note->set_id ( storage.get_id ( note->get_relative_path () ) );
         }
     }
 };
