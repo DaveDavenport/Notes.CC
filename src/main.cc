@@ -24,6 +24,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+/**
+ * TODO: make NotesCC::notes a map<id, Note *> instead of list?
+ */
 
 #include <iostream>
 #include <algorithm>
