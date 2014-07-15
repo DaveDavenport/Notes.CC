@@ -387,7 +387,11 @@ private:
         rc = git_push_finish ( out );
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to push to remote 'origin': %s\n", e->message );
+            if(e != nullptr ) {
+                notes_print_error ( "Failed to push to remote 'origin': %s\n", e->message );
+            } else {
+                notes_print_error ( "Failed to push to remote 'origin'. Please try manually.\n");
+            }
             git_remote_free ( remote );
             return false;
         }
