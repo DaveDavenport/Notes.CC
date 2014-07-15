@@ -87,6 +87,7 @@ const char * commands[] =
     "push",
     "pull",
     "export",
+    "import",
     "delete",
     "projects",
     "interactive",
@@ -847,6 +848,40 @@ private:
         return 3;
     }
 
+    int command_import ( int argc, char **argv )
+    {
+        if(argc < 1) {
+            notes_print_error ( "Import requires atleast one arguments:  <import_file> (<Project ID>)\n" );
+            return argc;
+
+        }
+        Project *p = this;
+        if(argc >= 2) {
+            std::string name = argv[1];
+            p   = this->get_or_create_project_from_name ( name );
+            if( p == nullptr ) {
+                return 2;
+            }
+        }
+        std::string path = argv[0];
+        Note *n = new Note ( p, &settings );
+
+        if ( n != nullptr ) {
+            if(!n->import(path)){
+                // Failed, clean up again.
+                n->del();
+                delete n;
+                return 2;
+            }
+            // Success, add it.
+            this->notes.push_back ( n );
+            n->set_id ( storage.get_id ( n->get_relative_path () ) );
+            auto path = n->get_relative_path ();
+            repository_stage_file ( path );
+        }
+        return 2;
+    }
+
 private:
     static int cred_acquire_cb ( git_cred** cred, const char*,
                                  const char *user, unsigned int, void* )
@@ -1084,6 +1119,12 @@ private:
         else if ( command == "export" ) {
             this->command_export_autocomplete ( argc - 1, &argv[1] );
         }
+        else if ( command == "import" ) {
+            if ( argc == 3 ) {
+                this->list_projects ();
+            }
+            return;
+        }
         else if ( command == "move" ) {
             this->command_move_autocomplete ( argc - 1, &argv[1] );
         }
@@ -1185,6 +1226,10 @@ private:
             else if ( strcmp ( argv[index], "export" ) == 0 ) {
                 index++;
                 index += this->command_export ( argc - index, &argv[index] );
+            }
+            else if ( strcmp ( argv[index], "import" ) == 0 ) {
+                index++;
+                index += this->command_import ( argc - index, &argv[index] );
             }
             else if ( strcmp ( argv[index], "projects" ) == 0 ) {
                 index++;

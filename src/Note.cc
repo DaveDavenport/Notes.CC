@@ -514,7 +514,7 @@ bool Note::move ( Project *p )
     return true;
 }
 
-bool Note::export_to_file_raw ( std::string path )
+bool Note::export_to_file_raw ( const std::string path )
 {
     FILE *fp = fopen ( path.c_str (), "w" );
     if ( fp == NULL ) {
@@ -531,7 +531,7 @@ bool Note::export_to_file_raw ( std::string path )
     return true;
 }
 
-bool Note::export_to_file_html ( std::string path )
+bool Note::export_to_file_html ( const std::string path )
 {
     MMIOT *doc = get_markdown_doc ();
     if ( doc == nullptr ) {
@@ -577,4 +577,49 @@ MMIOT *Note::get_markdown_doc ( )
     MMIOT *doc = mkd_in ( fp, 0 );
     fclose ( fp );
     return doc;
+}
+
+bool Note::import ( const std::string path )
+{
+    std::string fpath = project->get_path () + "/" + filename;
+    bool changed = false;
+    // Re-open edited note.
+    FILE *fp = fopen ( path.c_str(), "r" );
+    if ( fp == nullptr ) {
+        notes_print_error ( "Failed to open path: %s\n", path.c_str() );
+        return false;
+    }
+    time_t cur_time = time ( NULL );
+    localtime_r ( &cur_time, &( this->last_edit_time ) );
+
+    FILE *orig_file = fopen ( fpath.c_str (), "w" );
+    if ( orig_file == nullptr ) {
+        notes_print_error ( "Failed to open original note for writing: %s\n", strerror ( errno ) );
+        notes_print_error ( "Not saving note, you can find edit here: %s.\n", path.c_str() );
+        fclose ( fp );
+        return false;
+    }
+
+    // Write the header.
+    this->write_header ( orig_file );
+
+    unsigned int new_hash = this->calculate_crc ( fp );
+    // Rewind.
+    fseek ( fp, 0L, SEEK_SET );
+    // Write body
+    this->copy_till_end_of_file ( fp, orig_file );
+    // Rewind.
+    // Get title.
+    fseek ( fp, 0L, SEEK_SET );
+    this->read_title ( fp );
+
+    // Update body hash.
+    this->hash = new_hash;
+
+    fclose ( orig_file );
+
+    notes_print_info ( "Note successfully edited.\n" );
+    changed = true;
+    fclose(fp);
+    return changed;
 }

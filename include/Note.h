@@ -128,8 +128,10 @@ public:
 
     bool move ( Project *p );
 
-    bool export_to_file_html ( std::string file );
-    bool export_to_file_raw ( std::string file );
+    bool export_to_file_html ( const std::string file );
+    bool export_to_file_raw ( const std::string file );
+
+    bool import ( const std::string path );
 private:
     MMIOT *get_markdown_doc ();
     bool write_body ( FILE *fpout );
