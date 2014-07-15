@@ -33,12 +33,11 @@
 // conflicts when editing notes on multiple pc's.
 // Path is used as uid.
 
-// TODO: should path/id be swapped in the map?
 class IDStorage
 {
 private:
     std::string                          cache_path;
-    std::map <unsigned int, std::string> idmap;
+    std::map <std::string,unsigned int>  idmap;
     bool                                 changed = false;
 
     // Format:
@@ -66,14 +65,14 @@ public:
      *
      * Move the id to new path.
      */
-    void move_id ( const unsigned int id, const std::string path_new );
+    void move_id ( const std::string path_old, const std::string path_new );
 
     /**
      * @param id The id that is released.
      * 
      * Release the id back for re-use.
      */
-    void delete_id ( const unsigned int id );
+    void delete_id ( const std::string path_old );
 
     /**
      * @param notes List of notes.

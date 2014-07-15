@@ -51,7 +51,7 @@ void IDStorage::read ()
         if ( endpt != nullptr && *endpt != '\n' ) {
             endpt++;
             endpt[strlen ( endpt ) - 1] = '\0';
-            idmap[id]                   = ( endpt );
+            idmap[endpt]                   = id; 
         }
     }
     fclose ( fp );
@@ -66,7 +66,7 @@ void IDStorage::write ()
         return;
     }
     for ( auto& x : idmap ) {
-        fprintf ( fp, "%lu=%s\n", x.first, x.second.c_str () );
+        fprintf ( fp, "%lu=%s\n", x.second, x.first.c_str () );
     }
 
     fclose ( fp );
@@ -76,7 +76,7 @@ void IDStorage::gc (std::vector<Note *> notes)
 {
     idmap.clear();
     for ( auto note: notes ) {
-        idmap[note->get_id()] = note->get_relative_path();
+        idmap[note->get_relative_path()] = note->get_id();
     }
     changed = true;
     notes_print_info("Vacuumed the id Cache.\n");
@@ -84,18 +84,24 @@ void IDStorage::gc (std::vector<Note *> notes)
 unsigned int IDStorage::get_id ( const std::string path )
 {
     // Not efficient, but only done once at loading.
-    // TODO: O(n^2)
-    for ( auto& iter : idmap ) {
-        if ( iter.second == path ) {
-            return iter.first;
-        }
+    auto i = idmap.find(path);
+    if(i != idmap.end()) {
+        return i->second;
     }
     // Create new id.
+    // Inefficient O(n^2)?
     unsigned int id = 1;
     while ( true ) {
-        if ( idmap.find ( id ) == idmap.end () ) {
-            idmap[id] = path;
-            changed   = true;
+        bool found = false;
+        for(auto x = idmap.begin(); !found && x != idmap.end() ; x++ ) {
+            if (x->second == id) {
+                found = true;
+                break;
+            }
+        }
+        if(!found){
+            idmap[path] = id;
+            changed = true;
             return id;
         }
         id++;
@@ -120,17 +126,22 @@ IDStorage::~IDStorage ()
         write ();
     }
 }
-void IDStorage::move_id ( const unsigned int id, const std::string path_new )
+void IDStorage::move_id ( const std::string path_old, const std::string path_new )
 {
-    if ( idmap.find ( id ) != idmap.end () ) {
-        idmap[id] = path_new;
+    if ( idmap.find ( path_old ) != idmap.end () ) {
+        // Get id.
+        unsigned int id = idmap[path_old];
+        // Delete old entry.
+        idmap.erase(path_old);
+        // Add new entry.
+        idmap[path_new] = id;
         changed   = true;
     }
 }
-void IDStorage::delete_id ( const unsigned int id )
+void IDStorage::delete_id ( const std::string path_old)
 {
-    if ( idmap.find ( id ) != idmap.end () ) {
-        idmap.erase ( id );
+    if ( idmap.find ( path_old ) != idmap.end () ) {
+        idmap.erase ( path_old );
         changed = true;
     }
 }

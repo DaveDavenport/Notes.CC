@@ -882,7 +882,7 @@ private:
             this->repository_stage_file ( new_path );
             this->repository_delete_file ( old_path );
             // Move id
-            this->storage.move_id ( note->get_id (), new_path );
+            this->storage.move_id ( old_path, new_path );
         }
         return 2;
     }
@@ -993,10 +993,11 @@ private:
         char *response = readline ( "(y/n): " );
         if ( response && strcmp ( response, "y" ) == 0 ) {
             notes_print_warning ( "Deleting note\n" );
+            std::string path = note->get_relative_path();
             if ( note->del () ) {
                 // Tell git the file is removed.
-                repository_delete_file ( note->get_relative_path () );
-                storage.delete_id ( note->get_id () );
+                repository_delete_file ( path );
+                storage.delete_id ( path );
                 // Delete the entry from the list.
                 delete note;
                 notes[nindex] = nullptr;
