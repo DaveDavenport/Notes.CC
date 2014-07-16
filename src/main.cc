@@ -305,7 +305,10 @@ private:
         int        rc      = git_remote_load ( &remote, git_repo, "origin" );
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to load remote 'origin': %s\n", e->message );
+            notes_print_error ( "Failed to load remote 'origin'\n");
+            if ( e != nullptr ) {
+                notes_print_error("Error: %s\n", e->message );
+            }
             return false;
         }
 
@@ -380,7 +383,10 @@ private:
         git_reference_free ( ref );
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to add refspec push to remote 'origin': %s\n", e->message );
+            notes_print_error ( "Failed to add refspec push to remote 'origin'.\n");
+            if( e != nullptr ) {
+                notes_print_error("Error: %s\n", e->message );
+            }
             git_remote_free ( remote );
             return false;
         }
@@ -433,7 +439,9 @@ private:
         int           ret      = git_reference_lookup ( &headref, git_repo, "FETCH_HEAD" );
         if ( ret != 0 ) {
             const git_error *e = giterr_last ();
-            notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+            if( e != nullptr ) {
+                notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+            }
             notes_print_error ( "Failed to look up references for merge head\n" );
             return false;
         }
@@ -444,7 +452,9 @@ private:
 
         if ( ret != 0 ) {
             const git_error *e = giterr_last ();
-            notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+            if ( e != nullptr ) {
+                notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+            }
             notes_print_error ( "Failed to analyze merge \n" );
             git_reference_free ( headref );
             return false;
@@ -484,7 +494,9 @@ private:
             ret = git_reference_peel ( &obj, headref, GIT_OBJ_COMMIT );
             if ( ret != 0 ) {
                 const git_error *e = giterr_last ();
-                notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+                if( e != nullptr ) {
+                    notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+                }
                 notes_print_error ( "Failed to fast-forward the master branch.\n" );
                 git_reference_free ( ref );
                 git_reference_free ( headref );
@@ -497,7 +509,9 @@ private:
             git_object_free ( obj );
             if ( ret != 0 ) {
                 const git_error *e = giterr_last ();
-                notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+                if ( e != nullptr ) {
+                    notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+                }
                 notes_print_error ( "Failed to fast-forward the master branch.\n" );
                 git_reference_free ( headref );
                 return false;
@@ -509,7 +523,9 @@ private:
             ret                             = git_checkout_head ( git_repo, &checkout_opts );
             if ( ret != 0 ) {
                 const git_error *e = giterr_last ();
-                notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+                if ( e != nullptr ) {
+                    notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+                }
                 notes_print_error ( "Failed to checkout latest changes into Work Tree.\n" );
                 git_reference_free ( headref );
                 return false;
