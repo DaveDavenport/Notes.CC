@@ -581,12 +581,12 @@ MMIOT *Note::get_markdown_doc ( )
 
 bool Note::import ( const std::string path )
 {
-    std::string fpath = project->get_path () + "/" + filename;
-    bool changed = false;
+    std::string fpath   = project->get_path () + "/" + filename;
+    bool        changed = false;
     // Re-open edited note.
-    FILE *fp = fopen ( path.c_str(), "r" );
+    FILE        *fp = fopen ( path.c_str (), "r" );
     if ( fp == nullptr ) {
-        notes_print_error ( "Failed to open path: %s\n", path.c_str() );
+        notes_print_error ( "Failed to open path: %s\n", path.c_str () );
         return false;
     }
     time_t cur_time = time ( NULL );
@@ -595,7 +595,7 @@ bool Note::import ( const std::string path )
     FILE *orig_file = fopen ( fpath.c_str (), "w" );
     if ( orig_file == nullptr ) {
         notes_print_error ( "Failed to open original note for writing: %s\n", strerror ( errno ) );
-        notes_print_error ( "Not saving note, you can find edit here: %s.\n", path.c_str() );
+        notes_print_error ( "Not saving note, you can find edit here: %s.\n", path.c_str () );
         fclose ( fp );
         return false;
     }
@@ -620,6 +620,6 @@ bool Note::import ( const std::string path )
 
     notes_print_info ( "Note successfully edited.\n" );
     changed = true;
-    fclose(fp);
+    fclose ( fp );
     return changed;
 }

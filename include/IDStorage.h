@@ -37,7 +37,7 @@ class IDStorage
 {
 private:
     std::string                          cache_path;
-    std::map <std::string,unsigned int>  idmap;
+    std::map <std::string, unsigned int> idmap;
     bool                                 changed = false;
 
     // Format:
@@ -45,11 +45,11 @@ private:
     void read ();
 
     void write ();
- 
+
 public:
     IDStorage ( );
     ~IDStorage ();
-    
+
 
     /**
      * @param path The path to get an id for.
@@ -69,7 +69,7 @@ public:
 
     /**
      * @param id The id that is released.
-     * 
+     *
      * Release the id back for re-use.
      */
     void delete_id ( const std::string path_old );
@@ -82,6 +82,6 @@ public:
      * TODO: Would be nice if this class did not need the knowledge about
      * notes;
      */
-    void gc (std::vector<Note *> notes);
+    void gc ( std::vector<Note *> notes );
 };
 #endif // __ID_STORAGE_H__

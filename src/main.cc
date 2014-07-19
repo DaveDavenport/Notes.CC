@@ -305,9 +305,9 @@ private:
         int        rc      = git_remote_load ( &remote, git_repo, "origin" );
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to load remote 'origin'\n");
+            notes_print_error ( "Failed to load remote 'origin'\n" );
             if ( e != nullptr ) {
-                notes_print_error("Error: %s\n", e->message );
+                notes_print_error ( "Error: %s\n", e->message );
             }
             return false;
         }
@@ -383,9 +383,9 @@ private:
         git_reference_free ( ref );
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to add refspec push to remote 'origin'.\n");
-            if( e != nullptr ) {
-                notes_print_error("Error: %s\n", e->message );
+            notes_print_error ( "Failed to add refspec push to remote 'origin'.\n" );
+            if ( e != nullptr ) {
+                notes_print_error ( "Error: %s\n", e->message );
             }
             git_remote_free ( remote );
             return false;
@@ -393,10 +393,11 @@ private:
         rc = git_push_finish ( out );
         if ( rc != 0 ) {
             const git_error *e = giterr_last ();
-            if(e != nullptr ) {
+            if ( e != nullptr ) {
                 notes_print_error ( "Failed to push to remote 'origin': %s\n", e->message );
-            } else {
-                notes_print_error ( "Failed to push to remote 'origin'. Please try manually.\n");
+            }
+            else {
+                notes_print_error ( "Failed to push to remote 'origin'. Please try manually.\n" );
             }
             git_remote_free ( remote );
             return false;
@@ -439,7 +440,7 @@ private:
         int           ret      = git_reference_lookup ( &headref, git_repo, "FETCH_HEAD" );
         if ( ret != 0 ) {
             const git_error *e = giterr_last ();
-            if( e != nullptr ) {
+            if ( e != nullptr ) {
                 notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
             }
             notes_print_error ( "Failed to look up references for merge head\n" );
@@ -494,7 +495,7 @@ private:
             ret = git_reference_peel ( &obj, headref, GIT_OBJ_COMMIT );
             if ( ret != 0 ) {
                 const git_error *e = giterr_last ();
-                if( e != nullptr ) {
+                if ( e != nullptr ) {
                     notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
                 }
                 notes_print_error ( "Failed to fast-forward the master branch.\n" );
@@ -538,7 +539,7 @@ private:
             // This reloads the id storage with the current
             // Available notes.
             // Basically deleting old unused id's.
-            this->storage.gc(this->notes);
+            this->storage.gc ( this->notes );
         }
         else if ( ( analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE ) > 0 ) {
             notes_print_info ( "No change required.\n" );
@@ -870,26 +871,25 @@ private:
 
     int command_import ( int argc, char **argv )
     {
-        if(argc < 1) {
+        if ( argc < 1 ) {
             notes_print_error ( "Import requires atleast one arguments:  <import_file> (<Project ID>)\n" );
             return argc;
-
         }
         Project *p = this;
-        if(argc >= 2) {
+        if ( argc >= 2 ) {
             std::string name = argv[1];
-            p   = this->get_or_create_project_from_name ( name );
-            if( p == nullptr ) {
+            p = this->get_or_create_project_from_name ( name );
+            if ( p == nullptr ) {
                 return 2;
             }
         }
         std::string path = argv[0];
-        Note *n = new Note ( p, &settings );
+        Note        *n   = new Note ( p, &settings );
 
         if ( n != nullptr ) {
-            if(!n->import(path)){
+            if ( !n->import ( path ) ) {
                 // Failed, clean up again.
-                n->del();
+                n->del ();
                 delete n;
                 return 2;
             }
@@ -1048,7 +1048,7 @@ private:
         char *response = readline ( "(y/n): " );
         if ( response && strcmp ( response, "y" ) == 0 ) {
             notes_print_warning ( "Deleting note\n" );
-            std::string path = note->get_relative_path();
+            std::string path = note->get_relative_path ();
             if ( note->del () ) {
                 // Tell git the file is removed.
                 repository_delete_file ( path );
@@ -1265,7 +1265,7 @@ private:
             }
             else if ( strcmp ( argv[index], "gc" ) == 0 ) {
                 index++;
-                storage.gc(this->notes);
+                storage.gc ( this->notes );
             }
             else {
                 notes_print_error ( "Invalid command: '%s'\n", argv[index] );
