@@ -872,7 +872,7 @@ private:
     int command_import ( int argc, char **argv )
     {
         if ( argc < 1 ) {
-            notes_print_error ( "Import requires atleast one arguments:  <import_file> (<Project ID>)\n" );
+            notes_print_error ( "Import requires atleast one arguments:  <import_file> (<Project>)\n" );
             return argc;
         }
         Project *p = this;
