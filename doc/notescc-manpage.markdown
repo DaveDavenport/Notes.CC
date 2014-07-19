@@ -1,20 +1,20 @@
-NOTESCC 1 NotesCC
-===============
+NOTESCC 1 Notes.CC
+==================
 
 NAME
 ----
 
-NotesCC - Command-line Notes application
+Notes.CC - Command-line Notes application
 
 SYNOPSIS
 --------
 
-`NotesCC` command
+`Notes.CC` command
  
 DESCRIPTION
 -----------
 
-`NotesCC` is a simple command-line tool that allows you to quickly take (using your favorite editor)
+`Notes.CC` is a simple command-line tool that allows you to quickly take (using your favorite editor)
 notes, categories them in projects, search them and view them. It uses GIT for version management
 and synchronization. The tool was originally written in Bash, but displaying the nice table with
 notes became pretty slow. Therefor it was rewritten in C++.
@@ -23,10 +23,10 @@ notes became pretty slow. Therefor it was rewritten in C++.
 REPOSITORY
 ----------
 
-`NotesCC` uses a easy to manipulate folder structure on the filesystem to store and organize the
+`Notes.CC` uses a easy to manipulate folder structure on the filesystem to store and organize the
 notes. Each notes are ordered into directories that represent projects (See PROJECTS in this page).
 Each note itself is a text file that uses the markdown syntax. The first line of the note is used as
-the title. `NotesCC` appends some extra (optional) info in a header to keep track of modification
+the title. `Notes.CC` appends some extra (optional) info in a header to keep track of modification
 time and revisions. In a later version it might use the GIT back end to get this information.
 
 
@@ -38,7 +38,7 @@ MIT/X11
 USAGE
 -----
 
-The first argument passed to NotesCC is a command. This describes the action you want to take e.g.
+The first argument passed to Notes.CC is a command. This describes the action you want to take e.g.
 `list` the notes or `edit` it. Each command in its turn takes a certain amount of (optional) arguments.
 
 
@@ -120,7 +120,7 @@ The searching is done tokenized.
 WEBSITE
 -------
 
-`NotesCC` website can be found at [here](http://sarine.nl/)
+`Notes.CC` website can be found at [here](http://sarine.nl/)
 
 AUTHOR
 ------
