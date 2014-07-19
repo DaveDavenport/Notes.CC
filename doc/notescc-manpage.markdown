@@ -84,10 +84,15 @@ COMMANDS
 `projects`
 
 
-`add` [Project Name]
+`add` [PROJECT NAME]
 
 Adds a new note to the specified project (it is possible to specify no project). The note is created
 and directly opened for editing.
+
+`import` [PATH] [PROJECT NAME]
+
+Imports a markdown document pointed to by [PATH] into the local repository. If a [PROJECT NAME] is
+specified, it is imported into that specific project.
 
 `edit` [NOTE ID or FILTER]
 
