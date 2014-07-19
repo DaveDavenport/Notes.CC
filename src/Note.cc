@@ -190,10 +190,10 @@ Note::Note ( Project *p, Settings *settings ) :
 
     // Create a new unique filename
     // Not perfect, will have todo.
-    std::string fn    = "note-" + std::to_string ( time ( NULL ) ) + ".note";
+    std::string fn    = "note-" + std::to_string ( time ( NULL ) ) + ".md";
     int         index = 0;
     while ( !file_not_exists ( fn ) ) {
-        fn = "note-" + std::to_string ( time ( NULL ) ) + "-" + std::to_string ( index ) + ".note";
+        fn = "note-" + std::to_string ( time ( NULL ) ) + "-" + std::to_string ( index ) + ".md";
         index++;
     }
 
