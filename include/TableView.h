@@ -57,9 +57,7 @@ public:
 
     void set_value ( unsigned int row, std::string value );
 
-    TableColumn()
-    {
-    };
+    TableColumn();
 
     void set_color ( const char *color );
 
@@ -68,6 +66,7 @@ public:
     void add_entry ( std::string field );
 
     unsigned int get_width () const;
+    void set_width ( unsigned int width );
 
     const std::string &get_header () const;
 
@@ -84,9 +83,14 @@ class TableView
 private:
     std::vector<TableColumn > columns;
     unsigned int              num_rows = 0;
+    // Terminal size.
+    unsigned int              terminal_width  = 0;
+    unsigned int              terminal_height = 0;
 
 
 public:
+    TableView();
+
     // increment the number of rows.
     void operator++ ( int )
     {

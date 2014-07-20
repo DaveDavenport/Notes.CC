@@ -29,6 +29,15 @@
 
 #include <Colors.h>
 
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+
+TableColumn::TableColumn()
+{
+}
+
+
 /**
  * TableColumn
  */
@@ -69,7 +78,8 @@ void TableColumn::print ( unsigned int row ) const
     if ( color ) {
         fputs ( this->color, stdout );
     }
-    printf ( this->format, this->width, fields[row].c_str () );
+    printf ( this->format, this->width,
+             ( fields[row].substr ( 0, this->width ) ).c_str () );
     if ( color ) {
         fputs ( color_reset, stdout );
     }
@@ -84,10 +94,26 @@ unsigned int TableColumn::get_width () const
 {
     return this->width;
 }
+void TableColumn::set_width ( unsigned int width )
+{
+    this->width = width;
+}
 
 /**
  * TableView
  */
+
+TableView::TableView ()
+{
+    // Get size of terminal.
+
+    struct winsize w;
+    ioctl ( STDOUT_FILENO, TIOCGWINSZ, &w );
+
+    this->terminal_width  = w.ws_col;
+    this->terminal_height = w.ws_row;
+}
+
 void TableView::add_column ( std::string name, const char *color )
 {
     unsigned int index = columns.size ();
@@ -98,23 +124,39 @@ void TableView::add_column ( std::string name, const char *color )
 
 void TableView::print ()
 {
+    unsigned int width = 2;
     fputc ( '\n', stdout );
     // Print headers.
-    for ( auto col : columns ) {
-        printf ( "%s%s%-*s%s",
-                 color_bold,
-                 color_underline,
-                 col.get_width (),
-                 col.get_header ().c_str (),
-                 color_reset );
-        fputs ( "  ", stdout );
+    for ( auto &col : columns ) {
+        int remainder = this->terminal_width - width;
+        // If space is left, print header.
+        if ( remainder > 0 ) {
+            if ( remainder < col.get_width () ) {
+                col.set_width ( remainder );
+            }
+            width += col.get_width () + 2;
+
+            printf ( "%s%s%-*s%s",
+                     color_bold,
+                     color_underline,
+                     col.get_width (),
+                     col.get_header ().substr ( 0, col.get_width () ).c_str (),
+                     color_reset );
+            fputs ( "  ", stdout );
+        }
+        else {
+            // Disable column.
+            col.set_width ( 0 );
+        }
     }
     printf ( "\n" );
     // For each row, print the value.
     for ( unsigned int row = 0; row < this->num_rows; row++ ) {
-        for ( auto col : columns ) {
-            col.print ( row );
-            fputs ( "  ", stdout );
+        for ( auto &col : columns ) {
+            if ( col.get_width () > 0 ) {
+                col.print ( row );
+                fputs ( "  ", stdout );
+            }
         }
         printf ( "\n" );
     }
