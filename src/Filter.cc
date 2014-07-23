@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <string.h>
 #include <Project.h>
 #include <Note.h>
 
@@ -40,6 +41,7 @@ NotesFilter::NotesFilter( std::vector< Note *> notes )
 
 void NotesFilter::add_filter ( std::string value )
 {
+    const char *val_cstr = value.c_str();
     for ( auto iter = start_notes.begin (); iter != start_notes.end (); iter++ ) {
         Note *note = *iter;
 
@@ -50,12 +52,11 @@ void NotesFilter::add_filter ( std::string value )
 
         bool remove = true;
 
-        if ( note->get_title ().rfind ( value ) != std::string::npos ) {
+        if ( strcasestr(note->get_title ().c_str(), val_cstr) != NULL ) {
             remove = false;
-        }
-        if ( remove && note->get_project_name ().rfind ( value ) != std::string::npos ) {
-            remove =
-                false;
+        } else
+        if ( strcasestr(note->get_project_name ().c_str(), val_cstr) != NULL ) {
+            remove = false;
         }
 
         if ( remove ) {
