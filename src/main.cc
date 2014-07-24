@@ -114,14 +114,20 @@ private:
     git_index           * git_repo_index = nullptr;
     bool                git_changed      = false;
     Settings            settings;
-    IDStorage           storage;
+    IDStorage           *storage         = nullptr;
 
 public:
     NotesCC( )  : Project ( "" )
     {
+        // Create the ID storage->
+        storage = new IDStorage(settings.get_repository());
     }
     ~NotesCC()
     {
+        if ( storage != nullptr ) {
+            delete storage;
+            storage = nullptr;
+        }
         if ( git_changed ) {
             notes_print_info ( "Commiting changes to git.\n" );
             repository_commit_changes ();
@@ -173,6 +179,15 @@ public:
                                 db_path );
             notes_print_error ( "Please initialize a new repository using git init.\n" );
             return false;
+        }
+        // Ignore the .idcache.
+        // This should not show up when checking the repository.
+        if ( git_ignore_add_rule( git_repo, ".idcache" ) != 0 ) {
+            notes_print_warning ( "Failed to ignore the idcache in the repository.\n");
+            const git_error *e = giterr_last ();
+            if ( e != nullptr )  {
+                notes_print_warning ( "%s: %s\n", e->klass, e->message);
+            }
         }
         if ( !this->check_repository_state () ) {
             return false;
@@ -539,7 +554,7 @@ private:
             // This reloads the id storage with the current
             // Available notes.
             // Basically deleting old unused id's.
-            this->storage.gc ( this->notes );
+            this->storage->gc ( this->notes );
         }
         else if ( ( analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE ) > 0 ) {
             notes_print_info ( "No change required.\n" );
@@ -895,7 +910,7 @@ private:
             }
             // Success, add it.
             this->notes.push_back ( n );
-            n->set_id ( storage.get_id ( n->get_relative_path () ) );
+            n->set_id ( storage->get_id ( n->get_relative_path () ) );
             auto path = n->get_relative_path ();
             repository_stage_file ( path );
         }
@@ -937,7 +952,7 @@ private:
             this->repository_stage_file ( new_path );
             this->repository_delete_file ( old_path );
             // Move id
-            this->storage.move_id ( old_path, new_path );
+            this->storage->move_id ( old_path, new_path );
         }
         return 2;
     }
@@ -1052,7 +1067,7 @@ private:
             if ( note->del () ) {
                 // Tell git the file is removed.
                 repository_delete_file ( path );
-                storage.delete_id ( path );
+                storage->delete_id ( path );
                 // Delete the entry from the list.
                 delete note;
                 notes[nindex] = nullptr;
@@ -1084,7 +1099,7 @@ private:
 
         if ( n != nullptr ) {
             this->notes.push_back ( n );
-            n->set_id ( storage.get_id ( n->get_relative_path () ) );
+            n->set_id ( storage->get_id ( n->get_relative_path () ) );
             n->edit ();
             // Commit the result.
             auto path = n->get_relative_path ();
@@ -1265,7 +1280,7 @@ private:
             }
             else if ( strcmp ( argv[index], "gc" ) == 0 ) {
                 index++;
-                storage.gc ( this->notes );
+                storage->gc ( this->notes );
             }
             else {
                 notes_print_error ( "Invalid command: '%s'\n", argv[index] );
@@ -1313,7 +1328,7 @@ private:
 
         // Gives them UIDs.
         for ( auto note : this->notes ) {
-            note->set_id ( storage.get_id ( note->get_relative_path () ) );
+            note->set_id ( storage->get_id ( note->get_relative_path () ) );
         }
     }
 };

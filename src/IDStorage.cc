@@ -107,16 +107,9 @@ unsigned int IDStorage::get_id ( const std::string path )
         id++;
     }
 }
-IDStorage::IDStorage ( )
+IDStorage::IDStorage ( const std::string &repo_path )
 {
-    std::string homedir = getenv ( "HOME" );
-    if ( homedir.empty () ) {
-        notes_print_error ( "Could not find home directory.\n" );
-        return;
-    }
-    // TODO: Better way to get directory separator.
-    // TODO: Use XDG_PATH to get cache directory.
-    this->cache_path = homedir + "/" + ".notescc.idcache";
+    this->cache_path = repo_path + "/.idcache";
 
     read ();
 }

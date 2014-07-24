@@ -47,7 +47,7 @@ private:
     void write ();
 
 public:
-    IDStorage ( );
+    IDStorage ( const std::string &repo_path );
     ~IDStorage ();
 
 
