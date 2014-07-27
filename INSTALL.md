@@ -1,63 +1,70 @@
-Compilation
------------
+# Installation Guide
 
-Generate the build infrastructure:
+## Dependencies
 
-    autoreconf -i
+Building environment:
 
-Build the tool:
+ * A C++ compiler that supports the c++11 standard. This can either be clang++ or an up to date gcc
+   compiler.
+ * autoconf
+ * make
+ * automake
 
-    mkdir build
-    cd build
-    ../configure
-    make
-    make install
+Libraries:
 
-First Use
----------
-
-Create a repository:
-
-    mkdir ~/Notes/
-    cd ~/Notes/
-    git init .
-
-Copy the config file '''notesccrc''' to '~/.notesccrc' and edit it for your needs.
+ * libreadline
+ * libmarkdown (libmarkdown2 on debian)
+ * libgit2 (0.20 or later)
 
 
-Pushing Repository
-------------------
+## Compilation (from git)
 
-On the *push* and *pull* command notescc will execute the following steps:
+First create the build infrastructure
 
-push():
+```
+autoreconf -i
+```
 
-   connect to 'origin'
-   push origin 'refs/heads/<cur branch>'
-   pull()
+It is preferable (but not needed) to build in a build directory.
 
-pull():
+```
+mkdir build
+cd build
+```
 
-    fetch from 'origin'
-    Check merge state
-    if ( ff ) do fast-forward
+Run configure script:
 
-At the moment only fast forward merges are supported.
+```
+../configure
+```
 
-NOTE: libgit2 does not support ssh aliases as push targets, so use the following syntax:
+Build `Notes.CC`
 
-    ssh://<user@><host><:port>/<Path>/
+```
+make
+```
 
-Auto-complete
--------------
+Install it:
 
-Add the following to your bashrc:
+```
+make install
+```
 
-    _notescc()
-    {
-        curw="${COMP_WORDS[COMP_CWORD]}"
-        unset COMP_WORDS[$COMP_CWORD]
-        COMPREPLY=($(compgen -W '$(notescc --complete ${COMP_WORDS[@]:1})' -- $curw))
-    }
+## Tweaking compilation
 
-    complete -F _notescc notescc
+The following `hints` can be combined.
+
+### Installing in home directory
+
+```
+../configure --prefix=${HOME}/.local/
+```
+This will place the binary in `~/.local/bin/`, make sure this is part of your `$PATH`
+
+### Using clang++ instead of g++
+
+```
+CXX=clang++ ../configure
+```
+
+Configure should now check clang++ as a valid compiler.
