@@ -2,7 +2,7 @@
 
 ## NAME
 
-Notes.CC - Command-line Notes application
+Notes.CC - Command-line Notes application written in C++
 
 ## SYNOPSIS
 
@@ -10,7 +10,8 @@ Notes.CC - Command-line Notes application
  
 ## DESCRIPTION
 
-`Notes.CC` is a simple command-line tool that allows you to quickly take (using your favorite editor)
+`Notes.CC` is a simple command-line tool that allows you to quickly take (using your favorite
+editor)
 notes, categories them in projects, search them and view them. It uses GIT for version management
 and synchronization. The tool was originally written in Bash, but displaying the nice table with
 notes became pretty slow. Therefor it was rewritten in C++.
@@ -31,8 +32,9 @@ MIT/X11
 
 ## USAGE
 
-The first argument passed to Notes.CC is a command. This describes the action you want to take e.g.
-`list` the notes or `edit` it. Each command in its turn takes a certain amount of (optional) arguments.
+The first argument passed to `Notes.CC` is a command. This describes the action you want to take
+e.g.  `list` the notes or `edit` it. Each command in its turn takes a certain amount of (optional)
+arguments.
 
 
 Commands interacting with the repository:
@@ -51,17 +53,17 @@ Commands interacting with the repository:
 
 Commands working on an existing note:
 
- * view
+ * `view`
 
- * cat
+ * `cat`
 
- * export
+ * `export`
 
- * edit
+ * `edit`
 
- * delete
+ * `delete`
 
- * move
+ * `move`
 
 Other commands:
 
@@ -70,23 +72,38 @@ Other commands:
 
 ## COMMANDS
 
-`list` [FILTER]
+### list
+
+**Usage:** `list` [FILTER]
+
+Lists all the notesi in a nice looking table-view  matching the FILTER (if filter is not set all
+notes are listed).
 
 
-`projects`
+
+### projects
+
+**Usage:** `projects`
 
 
-`add` [PROJECT NAME]
+### add
+
+**Usage:** `add` [PROJECT NAME]
 
 Adds a new note to the specified project (it is possible to specify no project). The note is created
 and directly opened for editing.
 
-`import` [PATH] [PROJECT NAME]
+
+### import
+
+**Usage:** `import` [PATH] [PROJECT NAME]
 
 Imports a markdown document pointed to by [PATH] into the local repository. If a [PROJECT NAME] is
 specified, it is imported into that specific project.
 
-`edit` [NOTE ID or FILTER]
+### edit 
+
+**Usage:** `edit` [NOTE ID or FILTER]
 
 
 
