@@ -727,6 +727,16 @@ private:
             }
         }
 
+        if(argc == 1) {
+            // Get the last note.
+            if(strcasecmp(argv[0], "last") == 0) {
+                if(this->notes.size()  > 0){
+                    return this->notes[this->notes.size()-1];
+                }
+            }
+        }
+
+
         NotesFilter filter ( this->notes );
         for ( int iter = 0; iter < argc; iter++ ) {
             filter.add_filter ( argv[iter] );
@@ -1186,6 +1196,10 @@ private:
         using_history ();
 
         do {
+            // In interactive mode we want to make sure the list is always nicely ordered.
+            // This is needed so commands like 'last' are always consistent.
+            sort_notes();
+
             // Create interactive prompt.
             char *temp = readline ( "$ " );
 
@@ -1323,13 +1337,20 @@ private:
             this->notes.push_back ( note );
             free ( path );
         }
-        // Sort the notes.
-        std::sort ( this->notes.begin (), this->notes.end (), notes_print_sort );
 
         // Gives them UIDs.
         for ( auto note : this->notes ) {
             note->set_id ( storage->get_id ( note->get_relative_path () ) );
         }
+
+        sort_notes();
+    }
+
+
+    void sort_notes ()
+    {
+        // Sort the notes.
+        std::sort ( this->notes.begin (), this->notes.end (), notes_print_sort );
     }
 };
 

@@ -145,7 +145,11 @@ Note::Note( Project *project, Settings *settings, const char *filename ) :
             }
             else if ( strcasecmp ( buffer, "date" ) == 0 ) {
                 sep[strlen ( sep )] = '\0';
+
+                // Correctly initialize the isdst field to indicate not available.
+                this->last_edit_time.tm_isdst = -1;
                 char *retv = strptime ( sep + 1, "%a %b %d %T %z %Y", &( this->last_edit_time ) );
+                // We seem to loose daylight saving this way. Not good.
                 if ( retv == nullptr ) {
                     notes_print_error ( "Failed to parse date: |%s|\n", sep + 2 );
                 }
@@ -248,7 +252,7 @@ unsigned int Note::calculate_crc ( FILE *fp )
 std::string Note::get_modtime ()
 {
     char buffer[256];
-    strftime ( buffer, 256, "%F", &( this->last_edit_time ) );
+    strftime ( buffer, 256, "%F %H:%M", &( this->last_edit_time ) );
     return std::string ( buffer );
 }
 void Note::print ()
