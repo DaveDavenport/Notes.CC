@@ -225,7 +225,10 @@ void Note::read_title (  FILE *fp )
         if ( buffer[length - 1] == '\n' ) {
             buffer[length - 1] = '\0';
         }
-        this->title = buffer;
+        // Skip starting header indicator and whitespace.
+        size_t start = 0;
+        while( buffer[start] == '#' || isspace(buffer[start])) start++;
+        this->title = &buffer[start];
     }
 }
 
