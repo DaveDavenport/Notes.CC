@@ -122,17 +122,20 @@ public:
     }
     ~NotesCC()
     {
-        if(!settings.get_offline()) {
-            this->repository_push();
-        }
-        if ( storage != nullptr ) {
-            delete storage;
-            storage = nullptr;
-        }
+        // Commit lingering changes.
         if ( git_changed ) {
             notes_print_info ( "Commiting changes to git.\n" );
             repository_commit_changes ();
             git_changed = false;
+        }
+        // Push it when needed.
+        if(!settings.get_offline()) {
+            this->repository_push();
+        }
+
+        if ( storage != nullptr ) {
+            delete storage;
+            storage = nullptr;
         }
 
         // Clean git references.
