@@ -993,7 +993,7 @@ private:
         return 0;
     }
 
-    void command_view_autocomplete ()
+    void autocomplete_list_notes_ids_and_keywords()
     {
         for ( auto note : notes ) {
             printf ( "%u\n", note->get_id () );
@@ -1001,13 +1001,17 @@ private:
         if ( notes.size() > 0) {
             printf ( "last\n" );
         }
+
+    }
+
+    void command_view_autocomplete ()
+    {
+        autocomplete_list_notes_ids_and_keywords();
     }
 
     void command_edit_autocomplete ()
     {
-        for ( auto note : notes ) {
-            printf ( "%u\n", note->get_id () );
-        }
+        autocomplete_list_notes_ids_and_keywords();
     }
 
     /**
@@ -1125,9 +1129,7 @@ private:
     void command_export_autocomplete ( int argc, __attribute__( ( unused ) ) char **argv  )
     {
         if ( argc == 1 ) {
-            for ( auto note : notes ) {
-                printf ( "%u\n", note->get_id () );
-            }
+            autocomplete_list_notes_ids_and_keywords();
         }
         else if ( argc == 2 ) {
             printf ( "html\nraw\n" );
@@ -1136,9 +1138,7 @@ private:
     void command_move_autocomplete ( int argc, __attribute__ ( ( unused ) ) char **argv )
     {
         if ( argc == 1 ) {
-            for ( auto note : notes ) {
-                printf ( "%u\n", note->get_id () );
-            }
+            autocomplete_list_notes_ids_and_keywords();
         }
         else if ( argc == 2 ) {
             list_projects ();
