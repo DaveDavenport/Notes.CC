@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <strings.h>
 #include <fstream>
 #include <sstream>
 #include <Settings.h>
@@ -60,9 +61,15 @@ void Settings::read_config_file ()
                 else if ( key == "HTML_VIEWER" ) {
                     this->html_viewer = value;
                 }
+                else if ( key == "OFFLINE" ) {
+                    this->offline = (strcasecmp(value.c_str(), "true") == 0);
+                }
             }
         }
         infile.close ();
+    }
+    if(getenv("OFFLINE")) {
+        this->offline = strcasecmp(getenv("OFFLINE"), "true") == 0;
     }
 }
 
@@ -117,3 +124,19 @@ const std::string &Settings::get_html_viewer ()
     }
     return html_viewer;
 }
+
+const bool Settings::get_offline()
+{
+    return this->offline;
+}
+
+void Settings::set_offline(bool offline)
+{
+    this->offline = offline;
+}
+
+void Settings::set_repository(std::string &repo_path)
+{
+    this->repo_path = repo_path;
+}
+

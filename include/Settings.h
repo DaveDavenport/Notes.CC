@@ -38,12 +38,18 @@ public:
     const std::string &get_editor ();
     const std::string &get_html_viewer ();
 
+    const bool get_offline ();
+    void set_offline ( bool offline );
+
+    void set_repository ( std::string &repo_path );
+
 private:
     void read_config_file ();
 
     std::string repo_path;
     std::string editor;
     std::string html_viewer;
+    bool offline = false;
 };
 
 #endif

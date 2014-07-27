@@ -47,10 +47,6 @@ Commands interacting with the repository:
 
  * `import`: Import a markdown document into the repository as note. 
 
- * `push`: Push the repository to its remote location.  (git push)
-
- * `pull`: Update the repository from its remote location. (git pull)
-
 Commands working on an existing note:
 
  * `view`
@@ -105,8 +101,6 @@ specified, it is imported into that specific project.
 
 **Usage:** `edit` [NOTE ID or FILTER]
 
-
-
 ## NOTE ID
 
 Each note gets an ID, this ID is unique per PC. An ID is released when the note is removed and can
@@ -133,6 +127,12 @@ query.  The searching is done tokenized.
 Currently `Notes.CC` supports the following keywords:
 
 * *last*: The last edited note.
+
+## Extra command line flags
+
+* *--offline*: Do not try to pull/push.
+
+* *--repo* [REPO PATH]: Set the repository path to [REPO PATH].
 
 
 ## WEBSITE

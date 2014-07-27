@@ -84,8 +84,6 @@ const char * commands[] =
     "view",
     "cat",
     "list",
-    "push",
-    "pull",
     "export",
     "import",
     "delete",
@@ -124,6 +122,9 @@ public:
     }
     ~NotesCC()
     {
+        if(!settings.get_offline()) {
+            this->repository_push();
+        }
         if ( storage != nullptr ) {
             delete storage;
             storage = nullptr;
@@ -147,6 +148,31 @@ public:
         // Clear internal state.
         clear ();
     }
+    void pre_parse_settings (int &argc, char **argv)
+    {
+        // Set quiet.
+        if ( argc > 1 && strcmp ( argv[1], "--complete" ) == 0 ) {
+            notes_print_quiet ();
+        }
+        for(int index = 1; index < argc; index++)
+        {
+            if(strcmp( argv[index], "--offline") == 0) {
+                memmove(&argv[index], &argv[index+1], sizeof(char*)*(argc-index+1));
+                settings.set_offline(true);
+                argc--;
+                index--;
+            } else if ( strcmp ( argv[index], "--repo" ) == 0 && argc > (index+1)) {
+                std::string repo_path = argv[index+1];
+
+                settings.set_repository(repo_path);
+                memmove(&argv[index], &argv[index+2], sizeof(char*)*(argc-index));
+                argc-=2;
+                index-=2;
+
+            }
+        } 
+    }
+
     void run ( int argc, char **argv )
     {
         // Check interactive mode.
@@ -157,7 +183,6 @@ public:
 
         // Check autocomplete.
         else if ( argc > 1 && strcmp ( argv[1], "--complete" ) == 0 ) {
-            notes_print_quiet ();
             run_autocomplete ( argc - 1, &argv[1] );
         }
 
@@ -191,6 +216,9 @@ public:
         }
         if ( !this->check_repository_state () ) {
             return false;
+        }
+        if(!settings.get_offline()) {
+            this->repository_pull();
         }
 
         // Load the notes.
@@ -349,6 +377,45 @@ private:
     }
     bool repository_push ()
     {
+        // Check
+        {
+            git_reference *headref = nullptr;
+            git_reference *href;
+            int ret = git_repository_head ( &href, git_repo );
+            if( ret == 0 )
+            {
+                char *path = nullptr;
+                if(asprintf(&path, "refs/remotes/origin/%s", git_reference_shorthand( href )) > 0) {
+                    ret = git_reference_lookup ( &headref, git_repo, path);
+                    free(path);
+                    if(ret == 0 ){
+                        if(git_reference_cmp(headref, href) == 0) {
+                            notes_print_info("Nothing to push.\n");
+
+                            git_reference_free(headref);
+                            git_reference_free(href);
+                            return false;
+                        }
+
+                        git_reference_free(headref);
+                    }else{
+                        const git_error *e = giterr_last ();
+                        if ( e != nullptr ) {
+                            notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+                        }
+                        notes_print_error ( "Failed to get head remote.\n" );
+                    }
+                }
+                git_reference_free(href);
+            }else{
+                const git_error *e = giterr_last ();
+                if ( e != nullptr ) {
+                    notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
+                }
+                notes_print_error ( "Failed to get head.\n" );
+            }
+
+        }
         notes_print_info ( "Connecting to 'origin'\n" );
         git_remote *remote = nullptr;
         int        rc      = git_remote_load ( &remote, git_repo, "origin" );
@@ -1287,14 +1354,6 @@ private:
                 index++;
                 index += this->command_projects ( argc - index, &argv[index] );
             }
-            else if ( strcmp ( argv[index], "pull" ) == 0 ) {
-                index++;
-                repository_pull ();
-            }
-            else if ( strcmp ( argv[index], "push" ) == 0 ) {
-                index++;
-                repository_push ();
-            }
             else if ( strcmp ( argv[index], "gc" ) == 0 ) {
                 index++;
                 storage->gc ( this->notes );
@@ -1363,6 +1422,9 @@ int main ( int argc, char ** argv )
     INIT_TIC_TAC ()
 
     NotesCC * notes = new NotesCC ( );
+
+    // Parse some options we might want to check before opening the db.
+    notes->pre_parse_settings(argc, argv);
 
     // Open repository
     if ( notes->open_repository ( ) ) {
