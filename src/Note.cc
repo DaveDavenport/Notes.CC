@@ -194,10 +194,10 @@ Note::Note ( Project *p, Settings *settings ) :
 
     // Create a new unique filename
     // Not perfect, will have todo.
-    std::string fn    = "note-" + std::to_string ( time ( NULL ) ) + ".md";
+    std::string fn    = "note-" + std::to_string ( time ( NULL ) ) + ".markdown";
     int         index = 0;
     while ( !file_not_exists ( fn ) ) {
-        fn = "note-" + std::to_string ( time ( NULL ) ) + "-" + std::to_string ( index ) + ".md";
+        fn = "note-" + std::to_string ( time ( NULL ) ) + "-" + std::to_string ( index ) + ".markdown";
         index++;
     }
 
@@ -405,7 +405,7 @@ bool Note::edit ()
     // Create temp filename.
     // This is used to store the edited note.
     char *path;
-    if ( asprintf ( &path, "/tmp/notescc-%u.md", this->hash ) <= 0 ) {
+    if ( asprintf ( &path, "/tmp/notescc-%u.markdown", this->hash ) <= 0 ) {
         notes_print_error ( "Failed to create note tmp path\n" );
         return false;
     }
