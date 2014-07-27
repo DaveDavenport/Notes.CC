@@ -998,6 +998,9 @@ private:
         for ( auto note : notes ) {
             printf ( "%u\n", note->get_id () );
         }
+        if ( notes.size() > 0) {
+            printf ( "last\n" );
+        }
     }
 
     void command_edit_autocomplete ()
