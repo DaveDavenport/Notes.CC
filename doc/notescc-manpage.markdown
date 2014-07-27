@@ -1,18 +1,14 @@
-NOTESCC 1 Notes.CC
-==================
+# NOTESCC 1 Notes.CC
 
-NAME
-----
+## NAME
 
 Notes.CC - Command-line Notes application
 
-SYNOPSIS
---------
+## SYNOPSIS
 
 `Notes.CC` command
  
-DESCRIPTION
------------
+## DESCRIPTION
 
 `Notes.CC` is a simple command-line tool that allows you to quickly take (using your favorite editor)
 notes, categories them in projects, search them and view them. It uses GIT for version management
@@ -20,8 +16,7 @@ and synchronization. The tool was originally written in Bash, but displaying the
 notes became pretty slow. Therefor it was rewritten in C++.
 
 
-REPOSITORY
-----------
+## REPOSITORY
 
 `Notes.CC` uses a easy to manipulate folder structure on the filesystem to store and organize the
 notes. Each notes are ordered into directories that represent projects (See PROJECTS in this page).
@@ -30,13 +25,11 @@ the title. `Notes.CC` appends some extra (optional) info in a header to keep tra
 time and revisions. In a later version it might use the GIT back end to get this information.
 
 
-LICENSE
--------
+## LICENSE
 
 MIT/X11
 
-USAGE
------
+## USAGE
 
 The first argument passed to Notes.CC is a command. This describes the action you want to take e.g.
 `list` the notes or `edit` it. Each command in its turn takes a certain amount of (optional) arguments.
@@ -75,8 +68,7 @@ Other commands:
   * `interactive`: Go into an interactive shell.
 
 
-COMMANDS
---------
+## COMMANDS
 
 `list` [FILTER]
 
@@ -98,8 +90,7 @@ specified, it is imported into that specific project.
 
 
 
-NOTE ID
--------
+## NOTE ID
 
 Each note gets an ID, this ID is unique per PC. An ID is released when the note is removed and can
 then be re-assigned to a new Note.
@@ -107,27 +98,31 @@ then be re-assigned to a new Note.
 These IDs are not synchronized between PC's. This to avoid possible synchronization issues when
 multiple notes are created on different PC's and then synced via GIT.
 
-PROJECT NAME
-------------
+## PROJECT NAME
 
 A project name consists out of a simple ASCII string. Nested projects are separated by a single `.`.
 For example Work.ICT  means Project Work has a sub-project ICT. In the file system the Project
 define the directory structure used to organize the notes.
 
 
-FILTER
-------
+## FILTER
 
-Filter will search the title and project of a note for a match for the string.
-The searching is done tokenized.
+The filter in `Notes.CC` tries to be very flexible, you can specify the [NOTE ID] or a specific
+keyword. If this fails, the filter will search the title and project of a note for a match for the
+query.  The searching is done tokenized.
+
+### Filter keywords
+
+Currently `Notes.CC` supports the following keywords:
+
+* *last*: The last edited note.
 
 
-WEBSITE
--------
+## WEBSITE
 
 `Notes.CC` website can be found at [here](http://sarine.nl/)
 
-AUTHOR
-------
+##AUTHOR
+
 Qball Cow <qball@gmpclient.org>
 
