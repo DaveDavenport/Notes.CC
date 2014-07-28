@@ -220,10 +220,15 @@ public:
         if ( !this->check_repository_state () ) {
             return false;
         }
-        if(!settings.get_offline()) {
-            this->repository_pull();
-        }
 
+        // Do a pull, this will reload the DB when needed.
+        if(!settings.get_offline()) {
+            if(this->repository_pull()) {
+                // Returns true when updated and loaded the new db.. Otherwise fall through and load
+                // the db.
+               return true; 
+            }
+        }
         // Load the notes.
         this->Load ( );
 
@@ -625,6 +630,7 @@ private:
             // Available notes.
             // Basically deleting old unused id's.
             this->storage->gc ( this->notes );
+            return true;
         }
         else if ( ( analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE ) > 0 ) {
             notes_print_info ( "No change required.\n" );
@@ -637,7 +643,7 @@ private:
 
         git_reference_free ( headref );
 
-        return true;
+        return false;
     }
 
     bool check_repository_state ()
