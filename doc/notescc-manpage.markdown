@@ -47,6 +47,12 @@ Commands interacting with the repository:
 
  * `import`: Import a markdown document into the repository as note. 
 
+The following commands should not be needed when using `Notes.CC` auto pull/push.
+
+ * `push`: If there are changes, push them to the remote server.
+
+ * `pull`: Pull the latest changes from the server.
+
 Commands working on an existing note:
 
  * `view`
@@ -134,6 +140,37 @@ Currently `Notes.CC` supports the following keywords:
 
 * *--repo* [REPO PATH]: Set the repository path to [REPO PATH].
 
+* *--nopull*: Do not pull from the repository, but do push when needed.
+
+    This command is useful if you do not want the pull delay every time you run NotesCC.
+
+## Config File
+
+The config file supports the following settings.
+
+### HTML_VIEWER
+```
+HTML_VIEWER=xdg-open
+```
+Set the html viewer to use.
+
+### REPOSITORY
+```
+REPOSITORY=<path>
+```
+The repository path.
+
+### OFFLINE
+```
+OFFLINE=true
+```
+Puts `Notes.CC` in offline mode.
+
+### NOPULL
+```
+NOPULL=true
+```
+Tell `Notes.CC` not to pull on each run.
 
 ## WEBSITE
 
