@@ -89,6 +89,8 @@ const char * commands[] =
     "delete",
     "projects",
     "interactive",
+    "pull",
+    "push",
     nullptr
 };
 
@@ -185,6 +187,23 @@ public:
         if ( argc == 2 && strcmp ( argv[1], "interactive" ) == 0 ) {
             notes_print_info ( "Interactive mode\n" );
             interactive ();
+        }
+        else if ( argc >= 2 && strcmp ( argv[1], "pull" ) == 0 ) {
+            if ( settings.get_offline () ) {
+                notes_print_error ( "You cannot pull when in offline mode.\n" );
+                return;
+            }
+            // Command is only needed if no auto pull is set.
+            if ( settings.get_nopull () ) {
+                this->repository_pull ();
+            }
+        }
+        else if ( argc >= 2 && strcmp ( argv[1], "push" ) == 0 ) {
+            if ( settings.get_offline () ) {
+                notes_print_error ( "You cannot push when in offline mode.\n" );
+                return;
+            }
+            this->repository_push ();
         }
 
         // Check autocomplete.
