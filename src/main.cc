@@ -112,7 +112,7 @@ private:
     git_index           * git_repo_index = nullptr;
     bool                git_changed      = false;
     Settings            settings;
-    IDStorage           *storage         = nullptr;
+    IDStorage           *storage = nullptr;
 
 public:
     NotesCC( )  : Project ( "" )
@@ -127,8 +127,8 @@ public:
             git_changed = false;
         }
         // Push it when needed.
-        if(!settings.get_offline()) {
-            this->repository_push();
+        if ( !settings.get_offline () ) {
+            this->repository_push ();
         }
 
         if ( storage != nullptr ) {
@@ -149,29 +149,34 @@ public:
         // Clear internal state.
         clear ();
     }
-    void pre_parse_settings (int &argc, char **argv)
+    void pre_parse_settings ( int &argc, char **argv )
     {
         // Set quiet.
         if ( argc > 1 && strcmp ( argv[1], "--complete" ) == 0 ) {
             notes_print_quiet ();
         }
-        for(int index = 1; index < argc; index++)
-        {
-            if(strcmp( argv[index], "--offline") == 0) {
-                memmove(&argv[index], &argv[index+1], sizeof(char*)*(argc-index+1));
-                settings.set_offline(true);
+        for ( int index = 1; index < argc; index++ ) {
+            if ( strcmp ( argv[index], "--offline" ) == 0 ) {
+                memmove ( &argv[index], &argv[index + 1], sizeof ( char* ) * ( argc - index + 1 ) );
+                settings.set_offline ( true );
                 argc--;
                 index--;
-            } else if ( strcmp ( argv[index], "--repo" ) == 0 && argc > (index+1)) {
-                std::string repo_path = argv[index+1];
-
-                settings.set_repository(repo_path);
-                memmove(&argv[index], &argv[index+2], sizeof(char*)*(argc-index));
-                argc-=2;
-                index-=2;
-
             }
-        } 
+            else if ( strcmp ( argv[index], "--nopull" ) == 0 ) {
+                memmove ( &argv[index], &argv[index + 1], sizeof ( char* ) * ( argc - index + 1 ) );
+                settings.set_nopull ( true );
+                argc--;
+                index--;
+            }
+            else if ( strcmp ( argv[index], "--repo" ) == 0 && argc > ( index + 1 ) ) {
+                std::string repo_path = argv[index + 1];
+
+                settings.set_repository ( repo_path );
+                memmove ( &argv[index], &argv[index + 2], sizeof ( char* ) * ( argc - index ) );
+                argc  -= 2;
+                index -= 2;
+            }
+        }
     }
 
     void run ( int argc, char **argv )
@@ -201,8 +206,8 @@ public:
         const char *db_path = settings.get_repository ().c_str ();
 
         // Create the ID storage->
-        if(storage == nullptr) {
-            storage = new IDStorage(settings.get_repository());
+        if ( storage == nullptr ) {
+            storage = new IDStorage ( settings.get_repository () );
         }
 
         // Check git repository.
@@ -214,11 +219,11 @@ public:
         }
         // Ignore the .idcache.
         // This should not show up when checking the repository.
-        if ( git_ignore_add_rule( git_repo, ".idcache" ) != 0 ) {
-            notes_print_warning ( "Failed to ignore the idcache in the repository.\n");
+        if ( git_ignore_add_rule ( git_repo, ".idcache" ) != 0 ) {
+            notes_print_warning ( "Failed to ignore the idcache in the repository.\n" );
             const git_error *e = giterr_last ();
-            if ( e != nullptr )  {
-                notes_print_warning ( "%s: %s\n", e->klass, e->message);
+            if ( e != nullptr ) {
+                notes_print_warning ( "%s: %s\n", e->klass, e->message );
             }
         }
         if ( !this->check_repository_state () ) {
@@ -226,11 +231,13 @@ public:
         }
 
         // Do a pull, this will reload the DB when needed.
-        if(!settings.get_offline()) {
-            if(this->repository_pull()) {
-                // Returns true when updated and loaded the new db.. Otherwise fall through and load
-                // the db.
-               return true; 
+        if ( !settings.get_offline () ) {
+            if ( !settings.get_nopull () ) {
+                if ( this->repository_pull () ) {
+                    // Returns true when updated and loaded the new db.. Otherwise fall through and load
+                    // the db.
+                    return true;
+                }
             }
         }
         // Load the notes.
@@ -393,24 +400,24 @@ private:
         {
             git_reference *headref = nullptr;
             git_reference *href;
-            int ret = git_repository_head ( &href, git_repo );
-            if( ret == 0 )
-            {
+            int           ret = git_repository_head ( &href, git_repo );
+            if ( ret == 0 ) {
                 char *path = nullptr;
-                if(asprintf(&path, "refs/remotes/origin/%s", git_reference_shorthand( href )) > 0) {
-                    ret = git_reference_lookup ( &headref, git_repo, path);
-                    free(path);
-                    if(ret == 0 ){
-                        if(git_reference_cmp(headref, href) == 0) {
-                            notes_print_info("Nothing to push.\n");
+                if ( asprintf ( &path, "refs/remotes/origin/%s", git_reference_shorthand ( href ) ) > 0 ) {
+                    ret = git_reference_lookup ( &headref, git_repo, path );
+                    free ( path );
+                    if ( ret == 0 ) {
+                        if ( git_reference_cmp ( headref, href ) == 0 ) {
+                            notes_print_info ( "Nothing to push.\n" );
 
-                            git_reference_free(headref);
-                            git_reference_free(href);
+                            git_reference_free ( headref );
+                            git_reference_free ( href );
                             return false;
                         }
 
-                        git_reference_free(headref);
-                    }else{
+                        git_reference_free ( headref );
+                    }
+                    else{
                         const git_error *e = giterr_last ();
                         if ( e != nullptr ) {
                             notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
@@ -418,15 +425,15 @@ private:
                         notes_print_error ( "Failed to get head remote.\n" );
                     }
                 }
-                git_reference_free(href);
-            }else{
+                git_reference_free ( href );
+            }
+            else{
                 const git_error *e = giterr_last ();
                 if ( e != nullptr ) {
                     notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
                 }
                 notes_print_error ( "Failed to get head.\n" );
             }
-
         }
         notes_print_info ( "Connecting to 'origin'\n" );
         git_remote *remote = nullptr;
@@ -807,11 +814,11 @@ private:
             }
         }
 
-        if(argc == 1) {
+        if ( argc == 1 ) {
             // Get the last note.
-            if(strcasecmp(argv[0], "last") == 0) {
-                if(this->notes.size()  > 0){
-                    return this->notes[this->notes.size()-1];
+            if ( strcasecmp ( argv[0], "last" ) == 0 ) {
+                if ( this->notes.size () > 0 ) {
+                    return this->notes[this->notes.size () - 1];
                 }
             }
         }
@@ -1073,25 +1080,24 @@ private:
         return 0;
     }
 
-    void autocomplete_list_notes_ids_and_keywords()
+    void autocomplete_list_notes_ids_and_keywords ()
     {
         for ( auto note : notes ) {
             printf ( "%u\n", note->get_id () );
         }
-        if ( notes.size() > 0) {
+        if ( notes.size () > 0 ) {
             printf ( "last\n" );
         }
-
     }
 
     void command_view_autocomplete ()
     {
-        autocomplete_list_notes_ids_and_keywords();
+        autocomplete_list_notes_ids_and_keywords ();
     }
 
     void command_edit_autocomplete ()
     {
-        autocomplete_list_notes_ids_and_keywords();
+        autocomplete_list_notes_ids_and_keywords ();
     }
 
     /**
@@ -1209,7 +1215,7 @@ private:
     void command_export_autocomplete ( int argc, __attribute__( ( unused ) ) char **argv  )
     {
         if ( argc == 1 ) {
-            autocomplete_list_notes_ids_and_keywords();
+            autocomplete_list_notes_ids_and_keywords ();
         }
         else if ( argc == 2 ) {
             printf ( "html\nraw\n" );
@@ -1218,7 +1224,7 @@ private:
     void command_move_autocomplete ( int argc, __attribute__ ( ( unused ) ) char **argv )
     {
         if ( argc == 1 ) {
-            autocomplete_list_notes_ids_and_keywords();
+            autocomplete_list_notes_ids_and_keywords ();
         }
         else if ( argc == 2 ) {
             list_projects ();
@@ -1281,7 +1287,7 @@ private:
         do {
             // In interactive mode we want to make sure the list is always nicely ordered.
             // This is needed so commands like 'last' are always consistent.
-            sort_notes();
+            sort_notes ();
 
             // Create interactive prompt.
             char *temp = readline ( "$ " );
@@ -1418,7 +1424,7 @@ private:
             note->set_id ( storage->get_id ( note->get_relative_path () ) );
         }
 
-        sort_notes();
+        sort_notes ();
     }
 
 
@@ -1437,7 +1443,7 @@ int main ( int argc, char ** argv )
     NotesCC * notes = new NotesCC ( );
 
     // Parse some options we might want to check before opening the db.
-    notes->pre_parse_settings(argc, argv);
+    notes->pre_parse_settings ( argc, argv );
 
     // Open repository
     if ( notes->open_repository ( ) ) {

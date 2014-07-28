@@ -62,14 +62,20 @@ void Settings::read_config_file ()
                     this->html_viewer = value;
                 }
                 else if ( key == "OFFLINE" ) {
-                    this->offline = (strcasecmp(value.c_str(), "true") == 0);
+                    this->offline = ( strcasecmp ( value.c_str (), "true" ) == 0 );
+                }
+                else if ( key == "NOPULL" ) {
+                    this->nopull = ( strcasecmp ( value.c_str (), "true" ) == 0 );
                 }
             }
         }
         infile.close ();
     }
-    if(getenv("OFFLINE")) {
-        this->offline = strcasecmp(getenv("OFFLINE"), "true") == 0;
+    if ( getenv ( "OFFLINE" ) ) {
+        this->offline = strcasecmp ( getenv ( "OFFLINE" ), "true" ) == 0;
+    }
+    if ( getenv ( "NOPULL" ) ) {
+        this->nopull = strcasecmp ( getenv ( "NOPULL" ), "true" ) == 0;
     }
 }
 
@@ -125,18 +131,27 @@ const std::string &Settings::get_html_viewer ()
     return html_viewer;
 }
 
-const bool Settings::get_offline()
+const bool Settings::get_offline ()
 {
     return this->offline;
 }
 
-void Settings::set_offline(bool offline)
+void Settings::set_offline ( bool offline )
 {
     this->offline = offline;
 }
 
-void Settings::set_repository(std::string &repo_path)
+void Settings::set_repository ( std::string &repo_path )
 {
     this->repo_path = repo_path;
 }
 
+void Settings::set_nopull ( bool nopull )
+{
+    this->nopull = nopull;
+}
+
+const bool Settings::get_nopull ()
+{
+    return this->nopull;
+}

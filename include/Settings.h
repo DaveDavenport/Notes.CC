@@ -41,6 +41,9 @@ public:
     const bool get_offline ();
     void set_offline ( bool offline );
 
+    const bool get_nopull ();
+    void set_nopull ( bool nopull );
+
     void set_repository ( std::string &repo_path );
 
 private:
@@ -49,7 +52,8 @@ private:
     std::string repo_path;
     std::string editor;
     std::string html_viewer;
-    bool offline = false;
+    bool        offline = false;
+    bool        nopull  = false;
 };
 
 #endif

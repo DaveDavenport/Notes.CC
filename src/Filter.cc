@@ -41,7 +41,7 @@ NotesFilter::NotesFilter( std::vector< Note *> notes )
 
 void NotesFilter::add_filter ( std::string value )
 {
-    const char *val_cstr = value.c_str();
+    const char *val_cstr = value.c_str ();
     for ( auto iter = start_notes.begin (); iter != start_notes.end (); iter++ ) {
         Note *note = *iter;
 
@@ -52,10 +52,11 @@ void NotesFilter::add_filter ( std::string value )
 
         bool remove = true;
 
-        if ( strcasestr(note->get_title ().c_str(), val_cstr) != NULL ) {
+        if ( strcasestr ( note->get_title ().c_str (), val_cstr ) != NULL ) {
             remove = false;
-        } else
-        if ( strcasestr(note->get_project_name ().c_str(), val_cstr) != NULL ) {
+        }
+        else
+        if ( strcasestr ( note->get_project_name ().c_str (), val_cstr ) != NULL ) {
             remove = false;
         }
 
