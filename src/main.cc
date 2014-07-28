@@ -117,8 +117,6 @@ private:
 public:
     NotesCC( )  : Project ( "" )
     {
-        // Create the ID storage->
-        storage = new IDStorage(settings.get_repository());
     }
     ~NotesCC()
     {
@@ -201,6 +199,12 @@ public:
     bool open_repository ( )
     {
         const char *db_path = settings.get_repository ().c_str ();
+
+        // Create the ID storage->
+        if(storage == nullptr) {
+            storage = new IDStorage(settings.get_repository());
+        }
+
         // Check git repository.
         if ( git_repository_open ( &git_repo, db_path ) != 0 ) {
             notes_print_error ( "The repository directory '%s' is not a git repository.\n",
