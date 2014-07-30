@@ -6,11 +6,11 @@ Notes.CC - Command-line Notes application written in C++
 
 ## SYNOPSIS
 
-`Notes.CC` command
+**Notes.CC** command
  
 ## DESCRIPTION
 
-`Notes.CC` is a simple command-line tool that allows you to quickly take (using your favorite
+**Notes.CC** is a simple command-line tool that allows you to quickly take (using your favorite
 editor)
 notes, categories them in projects, search them and view them. It uses GIT for version management
 and synchronization. The tool was originally written in Bash, but displaying the nice table with
@@ -19,11 +19,39 @@ notes became pretty slow. Therefor it was rewritten in C++.
 
 ## REPOSITORY
 
-`Notes.CC` uses a easy to manipulate folder structure on the filesystem to store and organize the
+**Notes.CC** uses a easy to manipulate folder structure on the filesystem to store and organize the
 notes. Each notes are ordered into directories that represent projects (See PROJECTS in this page).
 Each note itself is a text file that uses the markdown syntax. The first line of the note is used as
-the title. `Notes.CC` appends some extra (optional) info in a header to keep track of modification
+the title. **Notes.CC** appends some extra (optional) info in a header to keep track of modification
 time and revisions. In a later version it might use the GIT back end to get this information.
+
+## Getting started
+
+Create a new repository directory:
+
+```
+$ mkdir ~/Notes/
+$ cd ~/Notes/
+$ git init .
+```
+
+Create a configuration file: `~/.notesccrc` file.
+
+```
+REPOSITORY=/home/<user>/Notes/
+OFFLINE=true
+```
+
+We set offline mode *true*, because no remote repository is defined.
+
+Now run:
+
+```
+$ notescc add
+```
+
+to create your first note.
+
 
 
 ## LICENSE
@@ -32,7 +60,7 @@ MIT/X11
 
 ## USAGE
 
-The first argument passed to `Notes.CC` is a command. This describes the action you want to take
+The first argument passed to **Notes.CC** is a command. This describes the action you want to take
 e.g.  `list` the notes or `edit` it. Each command in its turn takes a certain amount of (optional)
 arguments.
 
@@ -47,7 +75,7 @@ Commands interacting with the repository:
 
  * `import`: Import a markdown document into the repository as note. 
 
-The following commands should not be needed when using `Notes.CC` auto pull/push.
+The following commands should not be needed when using **Notes.CC** auto pull/push.
 
  * `push`: If there are changes, push them to the remote server.
 
@@ -124,13 +152,13 @@ define the directory structure used to organize the notes.
 
 ## FILTER
 
-The filter in `Notes.CC` tries to be very flexible, you can specify the [NOTE ID] or a specific
+The filter in **Notes.CC** tries to be very flexible, you can specify the [NOTE ID] or a specific
 keyword. If this fails, the filter will search the title and project of a note for a match for the
 query.  The searching is done tokenized.
 
 ### Filter keywords
 
-Currently `Notes.CC` supports the following keywords:
+Currently **Notes.CC** supports the following keywords:
 
 * *last*: The last edited note.
 
@@ -158,25 +186,44 @@ Set the html viewer to use.
 ```
 REPOSITORY=<path>
 ```
-The repository path.
+The repository path. This should be a local checkout of a git repository that contains the notes.
+
+### EDITOR
+
+```
+EDITOR=vim
+```
+
+The editor should block until it is done. Editors that fork to the background will not work.
+E.g. when using `gvim`, use `gvim -f` to make sure it does not fork.
 
 ### OFFLINE
 ```
 OFFLINE=true
 ```
-Puts `Notes.CC` in offline mode.
+Puts **Notes.CC** in offline mode.
 
 ### NOPULL
 ```
 NOPULL=true
 ```
-Tell `Notes.CC` not to pull on each run.
+Tell **Notes.CC** not to do a git pull on each run.
 
 ## WEBSITE
 
-`Notes.CC` website can be found at [here](http://sarine.nl/)
+* Website can be found at [here](http://sarine.nl/).
+* Bugtracker can be found [here](not now).
+
+## Contact
+
+For help using **Notes.CC**, you can get support at 
+IRC:  #gmpc at irc.freenode.net
+
 
 ##AUTHOR
 
-Qball Cow <qball@gmpclient.org>
+**Notes.CC** is developed by Qball Cow <qball@gmpclient.org>
 
+##Bug Hunters
+
+Greg
