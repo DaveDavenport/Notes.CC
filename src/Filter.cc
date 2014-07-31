@@ -56,7 +56,7 @@ bool NotesFilter::add_keyword_filter( std::string &value )
                 auto npn = note->get_project_name();
                 bool remove = true;
                 if( npn.size() >= projectn.size()) {
-                    if( strncasecmp(projectn.c_str(), npn.c_str(),projectn.size()) == 0 ) {
+                    if( strcasestr (npn.c_str(),projectn.c_str()) != nullptr ) {
                         remove = false;
                     }
                 }
