@@ -32,6 +32,7 @@ class NotesFilter
 {
 private:
     std::list<Note *> start_notes;
+    bool add_keyword_filter ( std::string &value );
 public:
 
     NotesFilter( std::vector< Note *> notes );
