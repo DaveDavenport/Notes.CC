@@ -30,10 +30,6 @@
 #include <time.h>
 #include <list>
 
-extern "C" {
-#include <mkdio.h>
-}
-
 // Forward declaration.
 class Project;
 class Settings;
@@ -133,9 +129,9 @@ public:
 
     bool import ( const std::string path );
 private:
-    MMIOT *get_markdown_doc ();
     bool write_body ( FILE *fpout );
     void write_header ( FILE *header );
+    bool generate_html ( std::string output_path );
     /**
      * This function does nothing more then a copy
      * till end of file.

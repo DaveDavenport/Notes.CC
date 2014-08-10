@@ -46,6 +46,8 @@
 
 #include <Colors.h>
 
+#include "document.h"
+#include "html.h"
 
 // CRC copied from:
 /* Copyright (C) 1986 Gary S. Brown. You may use this program, or
@@ -309,41 +311,110 @@ static pid_t exec_cmd ( const char *cmd )
     return pid;
 }
 
+
+bool Note::generate_html ( std::string output_path )
+{
+    hoedown_buffer *ib, *ob;
+    // Read input file.
+    std::string    fpath = project->get_path () + "/" + filename;
+    FILE           *fp   = fopen ( fpath.c_str (), "r" );
+    if ( fp == nullptr ) {
+        notes_print_error ( "Failed to open note: %s\n", fpath.c_str () );
+        return false;
+    }
+    // Skip header.
+    char buffer[1024];
+    int  start = 0;
+    while ( start < 2 && fgets ( buffer, 1024, fp ) != nullptr ) {
+        if ( buffer[0] == '-' ) {
+            start++;
+        }
+    }
+
+    /**
+     *  READ THE NOTE into hoedown buffer
+     */
+    ib = hoedown_buffer_new ( 1024 );
+    if ( !ib ) {
+        notes_print_error ( "Couldn't allocate input buffer.\n" );
+        hoedown_buffer_free ( ib );
+        fclose ( fp );
+        return false;
+    }
+
+    while ( !feof ( fp ) ) {
+        if ( ferror ( fp ) ) {
+            notes_print_error ( "I/O errors found while reading input.\n" );
+            hoedown_buffer_free ( ib );
+            fclose ( fp );
+            return false;
+        }
+        if ( hoedown_buffer_grow ( ib, ib->size + 1024 ) != HOEDOWN_BUF_OK ) {
+            notes_print_error ( "Couldn't grow input buffer.\n" );
+            hoedown_buffer_free ( ib );
+            fclose ( fp );
+            return false;
+        }
+        ib->size += fread ( ib->data + ib->size, 1, 1024, fp );
+    }
+    fclose ( fp );
+
+    /**
+     * Note read into hoedown buffer
+     * Create renderer.
+     */
+
+    hoedown_renderer *renderer = hoedown_html_renderer_new ( 0, 0 );
+
+    ob = hoedown_buffer_new ( 1024 );
+    if ( !ob ) {
+        notes_print_error ( "Couldn't allocate output buffer.\n" );
+        hoedown_buffer_free ( ib );
+        return false;
+    }
+
+    hoedown_document * document = hoedown_document_new ( renderer,
+                                                         HOEDOWN_EXT_BLOCK | HOEDOWN_EXT_SPAN | HOEDOWN_EXT_FLAGS, 16 );
+    hoedown_document_render ( document, ob, ib->data, ib->size );
+    hoedown_buffer_free ( ib );
+
+    // Smarty pants!
+    ib = hoedown_buffer_new ( 1024 );
+    hoedown_html_smartypants ( ib, ob->data, ob->size );
+    hoedown_buffer_free ( ob );
+
+    // WRite note
+    fp = fopen ( output_path.c_str (), "w" );
+    if ( fp == nullptr ) {
+        notes_print_error ( "Failed to open tmp file: %s %s\n", output_path.c_str (), strerror ( errno ) );
+        hoedown_buffer_free ( ib );
+        hoedown_document_free ( document );
+        hoedown_html_renderer_free ( renderer );
+        return false;
+    }
+    (void) fwrite ( ib->data, 1, ib->size, fp );
+    fclose ( fp );
+    hoedown_buffer_free ( ib );
+
+    hoedown_document_free ( document );
+    hoedown_html_renderer_free ( renderer );
+    return true;
+}
+
 void Note::view ()
 {
-    MMIOT *doc = get_markdown_doc ();
-    if ( doc == nullptr ) {
+    std::string path = "/tmp/notescc-" + std::to_string ( this->hash ) + ".html";
+    if ( !this->generate_html ( path ) ) {
         return;
     }
-
-    char *path;
-    if ( asprintf ( &path, "/tmp/notescc-%u.xhtml", this->hash ) <= 0 ) {
-        notes_print_error ( "Failed to create note tmp path\n" );
-        return;
-    }
-
-    FILE *fp = fopen ( path, "w" );
-    if ( fp == nullptr ) {
-        notes_print_error ( "Failed to open tmp file: %s %s\n", path, strerror ( errno ) );
-        free ( path );
-        mkd_cleanup ( doc );
-        return;
-    }
-    // Generate XHTML page.
-    mkd_xhtmlpage ( doc, 0, fp );
-    fclose ( fp );
-    mkd_cleanup ( doc );
-
     // Fire up browser.
     char *command;
-    if ( asprintf ( &command, "%s %s", settings->get_html_viewer ().c_str (), path ) > 0 ) {
+    if ( asprintf ( &command, "%s %s", settings->get_html_viewer ().c_str (), path.c_str () ) > 0 ) {
         pid_t pid = exec_cmd ( command );
         // Wait till client is done.
         waitpid ( pid, NULL, 0 );
         free ( command );
     }
-
-    free ( path );
 }
 
 bool Note::write_body ( FILE *fpout )
@@ -542,50 +613,7 @@ bool Note::export_to_file_raw ( const std::string path )
 
 bool Note::export_to_file_html ( const std::string path )
 {
-    MMIOT *doc = get_markdown_doc ();
-    if ( doc == nullptr ) {
-        return false;
-    }
-
-    FILE *fp = fopen ( path.c_str (), "w" );
-    if ( fp == NULL ) {
-        notes_print_error ( "Failed to open file for writing: %s\n",
-                            strerror ( errno ) );
-        mkd_cleanup ( doc );
-        return false;
-    }
-
-    // Generate XHTML page.
-    mkd_xhtmlpage ( doc, 0, fp );
-    fclose ( fp );
-    mkd_cleanup ( doc );
-
-    return true;
-}
-
-
-MMIOT *Note::get_markdown_doc ( )
-{
-    std::string fpath = project->get_path () + "/" + filename;
-    FILE        *fp   = fopen ( fpath.c_str (), "r" );
-    if ( fp == nullptr ) {
-        notes_print_error ( "Failed to open note: %s\n", fpath.c_str () );
-        return nullptr;
-    }
-
-    // Skip header.
-    char buffer[1024];
-    int  start = 0;
-    while ( start < 2 && fgets ( buffer, 1024, fp ) != nullptr ) {
-        if ( buffer[0] == '-' ) {
-            start++;
-        }
-    }
-
-    // Parse remainder of document.
-    MMIOT *doc = mkd_in ( fp, 0 );
-    fclose ( fp );
-    return doc;
+    return generate_html ( path );
 }
 
 bool Note::import ( const std::string path )

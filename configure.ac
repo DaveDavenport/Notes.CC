@@ -23,8 +23,6 @@ AM_PROG_CC_C_O
 AC_CHECK_LIB([readline], [readline])
 AC_CHECK_HEADERS(readline/history.h readline/readline.h)
 
-AC_CHECK_LIB([markdown], [markdown])
-AC_CHECK_HEADERS(mkdio.h)
 ##
 # Check dependencies
 ##

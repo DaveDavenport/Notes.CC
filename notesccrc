@@ -9,20 +9,20 @@
 #
 # If not specified ${EDITOR} is used, if that is set it falls back to vim.
 ##
-EDITOR=gvim -f
+EDITOR=vim
 
 ##
 # Git directory containing the notes.
 #
 # If not specified '~/Notes/' is used.
 ##
-REPOSITORY=/home/qball/Notes2/
+REPOSITORY=/home/qball/Notes-Real/
 
 ##
 # HTML Viewer
 #
 # If not specified xdg-open is used.
 ##
-HTML_VIEWER=w3m
+HTML_VIEWER=xdg-open
 
 NOPULL=true
