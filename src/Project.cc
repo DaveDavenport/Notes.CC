@@ -48,7 +48,7 @@ void Project::set_parent ( Project *parent )
 }
 
 
-bool Project::is_root ()
+bool Project::is_root () const
 {
     return this->parent == nullptr;
 }
@@ -69,7 +69,7 @@ const std::string & Project::get_project_name () const
     return this->name;
 }
 
-std::string Project::get_name ()
+std::string Project::get_name () const
 {
     if ( parent != nullptr && !parent->is_root () ) {
         return parent->get_name () + "." + name;
