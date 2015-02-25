@@ -1121,8 +1121,12 @@ private:
         view.add_column ( "Num. Notes", color_white );
         view[1].set_left_align ();
         unsigned int row = 0;
-        for ( auto p : this->get_child_projects () ) {
-            command_projects_add_entry ( p, view, row );
+        for ( auto pc : this->get_child_projects () ) {
+            // Filter out archive.
+            // TODO: This needs to become a flag!
+            if(pc->get_name() != "Archive" ) {
+                command_projects_add_entry ( pc, view, row );
+            }
         }
         view.print ();
         return 0;
