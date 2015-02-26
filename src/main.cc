@@ -117,6 +117,9 @@ private:
     Settings            settings;
     IDStorage           *storage = nullptr;
 
+    // Output settings.
+    bool show_archive = false;
+
 public:
     NotesCC( )  : Project ( "" )
     {
@@ -955,28 +958,6 @@ private:
      * @param argc Number of renaming commandline options.
      * @param argv Remaining commandline options.
      *
-     * List the notes in archive.
-     *
-     * @returns number of consumed commandline options.
-     */
-    int command_archive_list ( int argc, char ** argv )
-    {
-        int         iter = 0;
-        NotesFilter filter ( this->notes );
-
-        filter.filter_not_archive ();
-        if ( argc > 0 ) {
-            for (; iter < argc; iter++ ) {
-                filter.add_filter ( argv[iter] );
-            }
-        }
-        this->display_notes ( filter.get_filtered_notes () );
-        return iter;
-    }
-    /**
-     * @param argc Number of renaming commandline options.
-     * @param argv Remaining commandline options.
-     *
      * List the notes.
      *
      * @returns number of consumed commandline options.
@@ -986,14 +967,17 @@ private:
         int         iter = 0;
         NotesFilter filter ( this->notes );
 
+        // Ignore archived notes.
+        if ( show_archive ) {
+            filter.filter_not_archive ();
+        }
+        else {
+            filter.filter_archive ();
+        }
         if ( argc > 0 ) {
             for (; iter < argc; iter++ ) {
                 filter.add_filter ( argv[iter] );
             }
-        }
-        else {
-            // Ignore archived notes.
-            filter.filter_archive ();
         }
         this->display_notes ( filter.get_filtered_notes () );
         return iter;
@@ -1124,7 +1108,7 @@ private:
         for ( auto pc : this->get_child_projects () ) {
             // Filter out archive.
             // TODO: This needs to become a flag!
-            if(pc->get_name() != "Archive" ) {
+            if ( ( pc->get_name () == "Archive" ) == show_archive ) {
                 command_projects_add_entry ( pc, view, row );
             }
         }
@@ -1195,11 +1179,8 @@ private:
         }
         return p;
     }
-    int command_archive ( int argc, char **argv )
+    int command_archive_move ( int argc, char ** argv )
     {
-        if ( argc == 0 ) {
-            return this->command_archive_list ( argc, argv );
-        }
         Note *note = this->get_note ( argc, argv );
         if ( note == nullptr ) {
             notes_print_error ( "No note selected\n" );
@@ -1210,11 +1191,11 @@ private:
         Project     *p     = this->get_or_create_project_from_name ( name );
         if ( p == nullptr ) {
             notes_print_error ( "Failed to create project by name: %s", name.c_str () );
-            return 1;
+            return argc;
         }
         if ( p == note->get_project () ) {
             notes_print_warning ( "Destination same as source: Ignoring.\n" );
-            return 1;
+            return argc;
         }
         std::string old_path = note->get_relative_path ();
         if ( note->move ( p ) ) {
@@ -1224,7 +1205,18 @@ private:
             // Move id
             this->storage->move_id ( old_path, new_path );
         }
-        return 1;
+        return argc;
+    }
+    int command_archive ( int argc, char **argv )
+    {
+        show_archive = true;
+        if ( argc == 0 ) {
+            return this->command_list ( argc, argv );
+        }
+        if ( strcmp ( argv[0], "move" ) == 0 ) {
+            return 1 + command_archive_move ( argc - 1, &argv[1] );;
+        }
+        return 0;
     }
 
     int command_delete ( int argc, char **argv )
@@ -1327,11 +1319,15 @@ private:
             return;
         }
         std::string command = argv[1];
-        if ( command == "view" || command == "cat" || command == "archive" ) {
+        if ( command == "view" || command == "cat" ) {
             if ( argc == 2 ) {
                 this->command_view_autocomplete ();
             }
             return;
+        }
+        else if ( command == "archive" ) {
+            // This is now just a modifier.
+            run_autocomplete ( argc - 1, &argv[1] );
         }
         else if ( command == "export" ) {
             this->command_export_autocomplete ( argc - 1, &argv[1] );
