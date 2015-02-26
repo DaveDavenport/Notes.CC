@@ -109,6 +109,13 @@ std::string Project::get_relative_path ()
     }
     return parent->get_relative_path () + "/" + name;
 }
+std::string Project::get_relative_name ( const Project *p )
+{
+    if ( parent == p ) {
+        return name;
+    }
+    return parent->get_relative_name ( p ) + "." + name;
+}
 
 void Project::list_projects ()
 {

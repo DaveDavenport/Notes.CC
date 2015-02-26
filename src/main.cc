@@ -1207,6 +1207,37 @@ private:
         }
         return argc;
     }
+    int command_archive_restore ( int argc, char ** argv )
+    {
+        Note *note = this->get_note ( argc, argv );
+        if ( note == nullptr ) {
+            notes_print_error ( "No note selected\n" );
+            return argc;
+        }
+        int           nindex = this->get_note_index ( note->get_id () );
+        const Project *rp    = note->get_project ();
+        while ( !rp->is_root () ) {
+            if ( rp->get_name () == "Archive" ) {
+                break;
+            }
+            rp = rp->get_parent ();
+        }
+        if ( rp->is_root () ) {
+            notes_print_error ( "Note is not archived, cannot restore\n" );
+            return argc;
+        }
+        std::string name     = note->get_relative_project_name ( rp );
+        Project     *p       = this->get_or_create_project_from_name ( name );
+        std::string old_path = note->get_relative_path ();
+        if ( note->move ( p ) ) {
+            std::string new_path = note->get_relative_path ();
+            this->repository_stage_file ( new_path );
+            this->repository_delete_file ( old_path );
+            // Move id
+            this->storage->move_id ( old_path, new_path );
+        }
+        return argc;
+    }
     int command_archive ( int argc, char **argv )
     {
         show_archive = true;
@@ -1215,6 +1246,9 @@ private:
         }
         if ( strcmp ( argv[0], "move" ) == 0 ) {
             return 1 + command_archive_move ( argc - 1, &argv[1] );;
+        }
+        else if ( strcmp ( argv[0], "restore" ) == 0 ) {
+            return 1 + command_archive_restore ( argc - 1, &argv[1] );;
         }
         return 0;
     }
@@ -1326,6 +1360,20 @@ private:
             return;
         }
         else if ( command == "archive" ) {
+            if ( argc >= 3 && std::string ( argv[2] ) == "move" ) {
+                if ( argc == 3 ) {
+                    autocomplete_list_notes_ids_and_keywords ();
+                }
+                return;
+            }
+            else if ( argc >= 3 && std::string ( argv[2] ) == "restore" ) {
+                if ( argc == 3 ) {
+                    autocomplete_list_notes_ids_and_keywords ();
+                }
+                return;
+            }
+            // Archive has restore command.
+            std::cout << "restore" << std::endl;
             // This is now just a modifier.
             run_autocomplete ( argc - 1, &argv[1] );
         }

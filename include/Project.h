@@ -77,6 +77,7 @@ public:
 
     virtual std::string get_path ();
     virtual std::string get_relative_path ();
+    virtual std::string get_relative_name ( const Project *p );
 
     void list_projects ();
 

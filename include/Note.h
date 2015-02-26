@@ -96,6 +96,11 @@ public:
         return this->project;
     }
 
+    const std::string get_relative_project_name ( const Project *p )
+    {
+        return this->project->get_relative_name ( p );
+    }
+
     std::string get_modtime ();
 
     unsigned long get_revision () const;
