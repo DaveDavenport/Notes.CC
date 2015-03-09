@@ -105,6 +105,40 @@ uint32_t updateCRC32 ( unsigned char ch, uint32_t crc )
 }
 
 
+int
+mkd_dxhtmlpage(MMIOT *p, int flags, FILE *out)
+{
+    char *title;
+    extern char *mkd_doc_title(MMIOT *);
+    if ( mkd_compile(p, flags) ) {
+        fprintf(out, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+        fprintf(out, "<!DOCTYPE html "
+                " PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\""
+                " \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n");
+        fprintf(out, "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\n");
+        fprintf(out, "<head>\n");
+        if ( title = mkd_doc_title(p) ) {
+            fprintf(out, "<title>%s</title>\n", title);
+        }
+        mkd_generatecss(p, out);
+        fprintf(out, "</head>\n");
+        fprintf(out, "<body>\n");
+        if((flags&MKD_TOC) == MKD_TOC) {
+            fprintf(out, "<div id=\"toc\">\n");
+            mkd_generatetoc(p, out);
+            fprintf(out, "</div>\n");
+        }
+        fprintf(out, "<div id=\"body\">\n");
+        mkd_generatehtml(p, out);
+        fprintf(out, "</div>\n");
+        fprintf(out, "</body>\n");
+        fprintf(out, "</html>\n");
+        mkd_cleanup(p);
+        return 0;
+    }
+    return -1;
+}
+
 
 /**
  * TODO:
@@ -330,7 +364,7 @@ void Note::view ()
         return;
     }
     // Generate XHTML page.
-    mkd_xhtmlpage ( doc, 0, fp );
+    mkd_dxhtmlpage ( doc, 0, fp );
     fclose ( fp );
     mkd_cleanup ( doc );
 
@@ -556,7 +590,7 @@ bool Note::export_to_file_html ( const std::string path )
     }
 
     // Generate XHTML page.
-    mkd_xhtmlpage ( doc, 0, fp );
+    mkd_dxhtmlpage ( doc, 0, fp );
     fclose ( fp );
     mkd_cleanup ( doc );
 
