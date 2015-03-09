@@ -53,12 +53,16 @@ protected:
     void set_parent ( Project *parent );
 
 public:
-    bool is_root ();
+    Project *get_parent () const
+    {
+        return this->parent;
+    }
+    bool is_root () const;
     Project( const char *name );
 
     virtual ~Project();
 
-    std::string get_name ();
+    std::string get_name () const;
     const std::string & get_project_name () const;
 
 /**
@@ -73,6 +77,7 @@ public:
 
     virtual std::string get_path ();
     virtual std::string get_relative_path ();
+    virtual std::string get_relative_name ( const Project *p );
 
     void list_projects ();
 

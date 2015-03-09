@@ -38,6 +38,11 @@ public:
     NotesFilter( std::vector< Note *> notes );
     void add_filter ( std::string value );
 
+    // Remove archive entries.
+    void filter_archive ();
+    // Remove everything not in archive
+    void filter_not_archive ();
+
     const std::list<Note *> &get_filtered_notes () const
     {
         return start_notes;

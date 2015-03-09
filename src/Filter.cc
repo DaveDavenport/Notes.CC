@@ -39,6 +39,55 @@ NotesFilter::NotesFilter( std::vector< Note *> notes )
     start_notes = std::list<Note *>( notes.begin (), notes.end () );
 }
 
+void NotesFilter::filter_not_archive ( )
+{
+    for ( auto iter = start_notes.begin (); iter != start_notes.end (); iter++ ) {
+        Note *note = *iter;
+
+        // Skip empty elements.
+        if ( note == nullptr ) {
+            continue;
+        }
+        bool          remove = false;
+        const Project *p     = note->get_project ();
+        while ( !p->is_root () && !p->get_parent ()->is_root () ) {
+            p = p->get_parent ();
+        }
+        if ( p->get_name () != "Archive" ) {
+            remove = true;
+        }
+
+        if ( remove ) {
+            *iter = nullptr;
+        }
+    }
+    start_notes.remove ( nullptr );
+}
+void NotesFilter::filter_archive ( )
+{
+    for ( auto iter = start_notes.begin (); iter != start_notes.end (); iter++ ) {
+        Note *note = *iter;
+
+        // Skip empty elements.
+        if ( note == nullptr ) {
+            continue;
+        }
+        bool          remove = false;
+        const Project *p     = note->get_project ();
+        while ( !p->is_root () && !p->get_parent ()->is_root () ) {
+            p = p->get_parent ();
+        }
+        if ( p->get_name () == "Archive" ) {
+            remove = true;
+        }
+
+        if ( remove ) {
+            *iter = nullptr;
+        }
+    }
+    start_notes.remove ( nullptr );
+}
+
 bool NotesFilter::add_keyword_filter ( std::string &value )
 {
     size_t index = value.find ( ':' );

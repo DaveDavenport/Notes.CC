@@ -91,6 +91,7 @@ const char * commands[] =
     "interactive",
     "pull",
     "push",
+    "archive",
     nullptr
 };
 
@@ -115,6 +116,9 @@ private:
     bool                git_changed      = false;
     Settings            settings;
     IDStorage           *storage = nullptr;
+
+    // Output settings.
+    bool show_archive = false;
 
 public:
     NotesCC( )  : Project ( "" )
@@ -963,8 +967,17 @@ private:
         int         iter = 0;
         NotesFilter filter ( this->notes );
 
-        for (; iter < argc; iter++ ) {
-            filter.add_filter ( argv[iter] );
+        // Ignore archived notes.
+        if ( show_archive ) {
+            filter.filter_not_archive ();
+        }
+        else {
+            filter.filter_archive ();
+        }
+        if ( argc > 0 ) {
+            for (; iter < argc; iter++ ) {
+                filter.add_filter ( argv[iter] );
+            }
         }
         this->display_notes ( filter.get_filtered_notes () );
         return iter;
@@ -1092,8 +1105,12 @@ private:
         view.add_column ( "Num. Notes", color_white );
         view[1].set_left_align ();
         unsigned int row = 0;
-        for ( auto p : this->get_child_projects () ) {
-            command_projects_add_entry ( p, view, row );
+        for ( auto pc : this->get_child_projects () ) {
+            // Filter out archive.
+            // TODO: This needs to become a flag!
+            if ( ( pc->get_name () == "Archive" ) == show_archive ) {
+                command_projects_add_entry ( pc, view, row );
+            }
         }
         view.print ();
         return 0;
@@ -1161,6 +1178,79 @@ private:
             str_start = str_end + 1;
         }
         return p;
+    }
+    int command_archive_move ( int argc, char ** argv )
+    {
+        Note *note = this->get_note ( argc, argv );
+        if ( note == nullptr ) {
+            notes_print_error ( "No note selected\n" );
+            return argc;
+        }
+        int         nindex = this->get_note_index ( note->get_id () );
+        std::string name   = "Archive." + note->get_project_name ();
+        Project     *p     = this->get_or_create_project_from_name ( name );
+        if ( p == nullptr ) {
+            notes_print_error ( "Failed to create project by name: %s", name.c_str () );
+            return argc;
+        }
+        if ( p == note->get_project () ) {
+            notes_print_warning ( "Destination same as source: Ignoring.\n" );
+            return argc;
+        }
+        std::string old_path = note->get_relative_path ();
+        if ( note->move ( p ) ) {
+            std::string new_path = note->get_relative_path ();
+            this->repository_stage_file ( new_path );
+            this->repository_delete_file ( old_path );
+            // Move id
+            this->storage->move_id ( old_path, new_path );
+        }
+        return argc;
+    }
+    int command_archive_restore ( int argc, char ** argv )
+    {
+        Note *note = this->get_note ( argc, argv );
+        if ( note == nullptr ) {
+            notes_print_error ( "No note selected\n" );
+            return argc;
+        }
+        int           nindex = this->get_note_index ( note->get_id () );
+        const Project *rp    = note->get_project ();
+        while ( !rp->is_root () ) {
+            if ( rp->get_name () == "Archive" ) {
+                break;
+            }
+            rp = rp->get_parent ();
+        }
+        if ( rp->is_root () ) {
+            notes_print_error ( "Note is not archived, cannot restore\n" );
+            return argc;
+        }
+        std::string name     = note->get_relative_project_name ( rp );
+        Project     *p       = this->get_or_create_project_from_name ( name );
+        std::string old_path = note->get_relative_path ();
+        if ( note->move ( p ) ) {
+            std::string new_path = note->get_relative_path ();
+            this->repository_stage_file ( new_path );
+            this->repository_delete_file ( old_path );
+            // Move id
+            this->storage->move_id ( old_path, new_path );
+        }
+        return argc;
+    }
+    int command_archive ( int argc, char **argv )
+    {
+        show_archive = true;
+        if ( argc == 0 ) {
+            return this->command_list ( argc, argv );
+        }
+        if ( strcmp ( argv[0], "move" ) == 0 ) {
+            return 1 + command_archive_move ( argc - 1, &argv[1] );;
+        }
+        else if ( strcmp ( argv[0], "restore" ) == 0 ) {
+            return 1 + command_archive_restore ( argc - 1, &argv[1] );;
+        }
+        return 0;
     }
 
     int command_delete ( int argc, char **argv )
@@ -1268,6 +1358,24 @@ private:
                 this->command_view_autocomplete ();
             }
             return;
+        }
+        else if ( command == "archive" ) {
+            if ( argc >= 3 && std::string ( argv[2] ) == "move" ) {
+                if ( argc == 3 ) {
+                    autocomplete_list_notes_ids_and_keywords ();
+                }
+                return;
+            }
+            else if ( argc >= 3 && std::string ( argv[2] ) == "restore" ) {
+                if ( argc == 3 ) {
+                    autocomplete_list_notes_ids_and_keywords ();
+                }
+                return;
+            }
+            // Archive has restore command.
+            std::cout << "restore" << std::endl;
+            // This is now just a modifier.
+            run_autocomplete ( argc - 1, &argv[1] );
         }
         else if ( command == "export" ) {
             this->command_export_autocomplete ( argc - 1, &argv[1] );
@@ -1391,6 +1499,10 @@ private:
             else if ( strcmp ( argv[index], "projects" ) == 0 ) {
                 index++;
                 index += this->command_projects ( argc - index, &argv[index] );
+            }
+            else if ( strcmp ( argv[index], "archive" ) == 0  ) {
+                index++;
+                index += this->command_archive ( argc - index, &argv[index] );
             }
             else if ( strcmp ( argv[index], "gc" ) == 0 ) {
                 index++;
