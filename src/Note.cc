@@ -117,6 +117,24 @@ mkd_dxhtmlpage(MMIOT *p, int flags, FILE *out)
                 " \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n");
         fprintf(out, "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\n");
         fprintf(out, "<head>\n");
+        // Print some CSS for looks:
+        // TODO: load from template/theme
+        fprintf(out, "<style type=\"text/css\">\n");
+        fprintf(out, "h1,h2,h3 { color: #299cd1; }\n");
+        fprintf(out, "code {\n");
+        fprintf(out, "    display: block;\n");
+        fprintf(out, "    margin: 1em;\n");
+        fprintf(out, "    padding: 1em;\n");
+        fprintf(out, "    background: #EEEEEE;\n");
+        fprintf(out, "    border: 1px solid black;\n");
+        fprintf(out, "    color: black;\n");
+        fprintf(out, "    font: monospace;\n");
+        fprintf(out, "}\n");
+        fprintf(out, "body {\n");
+        fprintf(out, "    margin-left: 10%%;\n");
+        fprintf(out, "    margin-right: 10%%;\n");
+        fprintf(out, "}\n");
+        fprintf(out, "</style>\n");
         if ( title = mkd_doc_title(p) ) {
             fprintf(out, "<title>%s</title>\n", title);
         }
