@@ -42,3 +42,4 @@ indent: ${notescc_SOURCES}
 # Extra files to pack in distribution
 ##
 EXTRA_DIST=notesccrc
+EXTRA_DIST+=css/markdown.css

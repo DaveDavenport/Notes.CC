@@ -61,6 +61,9 @@ void Settings::read_config_file ()
                 else if ( key == "HTML_VIEWER" ) {
                     this->html_viewer = value;
                 }
+                else if ( key == "CSS_FILE" ) {
+                    this->css_file = value;
+                }
                 else if ( key == "OFFLINE" ) {
                     this->offline = ( strcasecmp ( value.c_str (), "true" ) == 0 );
                 }
@@ -154,4 +157,12 @@ void Settings::set_nopull ( bool nopull )
 const bool Settings::get_nopull ()
 {
     return this->nopull;
+}
+
+const std::string &Settings::get_css_file()
+{
+    if (css_file.empty()) {
+        css_file = "";
+    }
+    return css_file;
 }

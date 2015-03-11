@@ -106,7 +106,7 @@ uint32_t updateCRC32 ( unsigned char ch, uint32_t crc )
 
 
 int
-mkd_dxhtmlpage(MMIOT *p, int flags, FILE *out)
+Note::mkd_dxhtmlpage(MMIOT *p, int flags, FILE *out)
 {
     char *title;
     extern char *mkd_doc_title(MMIOT *);
@@ -120,20 +120,13 @@ mkd_dxhtmlpage(MMIOT *p, int flags, FILE *out)
         // Print some CSS for looks:
         // TODO: load from template/theme
         fprintf(out, "<style type=\"text/css\">\n");
-        fprintf(out, "h1,h2,h3 { color: #299cd1; }\n");
-        fprintf(out, "code {\n");
-        fprintf(out, "    display: block;\n");
-        fprintf(out, "    margin: 1em;\n");
-        fprintf(out, "    padding: 1em;\n");
-        fprintf(out, "    background: #EEEEEE;\n");
-        fprintf(out, "    border: 1px solid black;\n");
-        fprintf(out, "    color: black;\n");
-        fprintf(out, "    font: monospace;\n");
-        fprintf(out, "}\n");
-        fprintf(out, "body {\n");
-        fprintf(out, "    margin-left: 10%%;\n");
-        fprintf(out, "    margin-right: 10%%;\n");
-        fprintf(out, "}\n");
+        if(!settings->get_css_file().empty()) {
+            FILE *css_fp = fopen(settings->get_css_file().c_str(), "r");
+            if(css_fp != nullptr) {
+                copy_till_end_of_file(css_fp, out);
+                fclose(css_fp);
+            }
+        }
         fprintf(out, "</style>\n");
         if ( title = mkd_doc_title(p) ) {
             fprintf(out, "<title>%s</title>\n", title);
