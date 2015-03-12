@@ -66,7 +66,7 @@ void IDStorage::write ()
         return;
     }
     for ( auto& x : idmap ) {
-        fprintf ( fp, "%lu=%s\n", x.second, x.first.c_str () );
+        fprintf ( fp, "%u=%s\n", x.second, x.first.c_str () );
     }
 
     fclose ( fp );
