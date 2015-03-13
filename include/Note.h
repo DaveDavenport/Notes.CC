@@ -141,7 +141,7 @@ private:
     MMIOT *get_markdown_doc ();
     bool write_body ( FILE *fpout );
     void write_header ( FILE *header );
-    int mkd_dxhtmlpage(MMIOT *p, int flags, FILE *out);
+    int mkd_dxhtmlpage ( MMIOT *p, int flags, FILE *out );
     /**
      * This function does nothing more then a copy
      * till end of file.

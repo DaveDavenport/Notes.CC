@@ -791,9 +791,9 @@ private:
 
         // Add the columns
         view.add_column ( "ID", color_bold );
-        view[0].set_left_align ();
+        view[0].set_right_align ();
         view.add_column ( "Rev.", color_blue );
-        view[1].set_left_align ();
+        view[1].set_right_align ();
         view.add_column ( "Project", color_white_bold );
         view.add_column ( "Last edited", color_green );
         view.add_column ( "Description" );
@@ -1089,9 +1089,8 @@ private:
     static void command_projects_add_entry ( Project *p, TableView &view, unsigned int &row )
     {
         view[0].set_value ( row, p->get_name () );
-        std::string nnotes =
-            std::to_string ( p->get_num_notes () ) + "/" + std::to_string ( p->get_num_notes_recursive () );
-        view[1].set_value ( row, nnotes );
+        view[1].set_value ( row, std::to_string ( p->get_num_notes () ) );
+        view[2].set_value ( row, std::to_string ( p->get_num_notes_recursive () ) );
         row++;
         view++;
         for ( auto pc : p->get_child_projects () ) {
@@ -1101,13 +1100,14 @@ private:
     int command_projects ( __attribute__( ( unused ) ) int argc, __attribute__( ( unused ) ) char **argv )
     {
         TableView view;
-        view.add_column ( "Project", color_blue );
+        view.add_column ( "Project", color_white_bold );
         view.add_column ( "Num. Notes", color_white );
-        view[1].set_left_align ();
+        view.add_column ( "Total Notes", color_white );
+        view[1].set_right_align ();
+        view[2].set_right_align ();
         unsigned int row = 0;
         for ( auto pc : this->get_child_projects () ) {
             // Filter out archive.
-            // TODO: This needs to become a flag!
             if ( ( pc->get_name () == "Archive" ) == show_archive ) {
                 command_projects_add_entry ( pc, view, row );
             }

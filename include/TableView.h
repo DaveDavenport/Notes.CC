@@ -31,8 +31,8 @@
 
 class TableColumn
 {
-const char *format_left_align  = "%*s";
-const char *format_right_align = "%-*s";
+const char *format_right_align = "%*s";
+const char *format_left_align  = "%-*s";
 private:
     // Name of the column (For header)
     std::string              column_name;
@@ -41,7 +41,7 @@ private:
     // color of the column.
     const char               *color = nullptr;
 
-    const char               *format = format_right_align;
+    const char               *format = format_left_align;
 
     // Max width.
     unsigned int width = 0;
@@ -75,6 +75,10 @@ public:
     void set_left_align ()
     {
         this->format = format_left_align;
+    }
+    void set_right_align ()
+    {
+        this->format = format_right_align;
     }
 };
 

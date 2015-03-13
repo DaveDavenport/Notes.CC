@@ -159,9 +159,9 @@ const bool Settings::get_nopull ()
     return this->nopull;
 }
 
-const std::string &Settings::get_css_file()
+const std::string &Settings::get_css_file ()
 {
-    if (css_file.empty()) {
+    if ( css_file.empty () ) {
         css_file = "";
     }
     return css_file;

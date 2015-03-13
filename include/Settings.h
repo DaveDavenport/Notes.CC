@@ -37,7 +37,7 @@ public:
     const std::string &get_repository ();
     const std::string &get_editor ();
     const std::string &get_html_viewer ();
-    const std::string &get_css_file();
+    const std::string &get_css_file ();
 
     const bool get_offline ();
     void set_offline ( bool offline );
