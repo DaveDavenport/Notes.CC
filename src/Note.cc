@@ -128,7 +128,7 @@ Note::mkd_dxhtmlpage ( MMIOT *p, int flags, FILE *out )
             }
         }
         fprintf ( out, "</style>\n" );
-        if ( title = mkd_doc_title ( p ) ) {
+        if ( (title = mkd_doc_title ( p )) != nullptr ) {
             fprintf ( out, "<title>%s</title>\n", title );
         }
         mkd_generatecss ( p, out );
@@ -205,7 +205,7 @@ Note::Note( Project *project, Settings *settings, const char *filename ) :
     long body_poss = ftell ( fp );
     // Read the title (first line after header)
     this->read_title ( fp );
-    body_poss = fseek ( fp, body_poss, SEEK_SET );
+    fseek ( fp, body_poss, SEEK_SET );
 
     // Calculate HASH of note.
     // This is used to see if the note has changed.

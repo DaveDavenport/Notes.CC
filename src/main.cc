@@ -1186,7 +1186,6 @@ private:
             notes_print_error ( "No note selected\n" );
             return argc;
         }
-        int         nindex = this->get_note_index ( note->get_id () );
         std::string name   = "Archive." + note->get_project_name ();
         Project     *p     = this->get_or_create_project_from_name ( name );
         if ( p == nullptr ) {
@@ -1214,7 +1213,6 @@ private:
             notes_print_error ( "No note selected\n" );
             return argc;
         }
-        int           nindex = this->get_note_index ( note->get_id () );
         const Project *rp    = note->get_project ();
         while ( !rp->is_root () ) {
             if ( rp->get_name () == "Archive" ) {
