@@ -128,7 +128,7 @@ Note::mkd_dxhtmlpage ( MMIOT *p, int flags, FILE *out )
             }
         }
         fprintf ( out, "</style>\n" );
-        if ( (title = mkd_doc_title ( p )) != nullptr ) {
+        if ( ( title = mkd_doc_title ( p ) ) != nullptr ) {
             fprintf ( out, "<title>%s</title>\n", title );
         }
         mkd_generatecss ( p, out );

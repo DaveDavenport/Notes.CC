@@ -1186,8 +1186,8 @@ private:
             notes_print_error ( "No note selected\n" );
             return argc;
         }
-        std::string name   = "Archive." + note->get_project_name ();
-        Project     *p     = this->get_or_create_project_from_name ( name );
+        std::string name = "Archive." + note->get_project_name ();
+        Project     *p   = this->get_or_create_project_from_name ( name );
         if ( p == nullptr ) {
             notes_print_error ( "Failed to create project by name: %s", name.c_str () );
             return argc;
@@ -1213,7 +1213,7 @@ private:
             notes_print_error ( "No note selected\n" );
             return argc;
         }
-        const Project *rp    = note->get_project ();
+        const Project *rp = note->get_project ();
         while ( !rp->is_root () ) {
             if ( rp->get_name () == "Archive" ) {
                 break;
@@ -1415,7 +1415,7 @@ private:
             sort_notes ();
 
             // Create interactive prompt.
-            char *temp = readline ( "$ " );
+            char *temp = readline ( "> " );
 
             // Quit on ctrl-d or quit.
             if ( temp == nullptr ) {
@@ -1501,6 +1501,10 @@ private:
             else if ( strcmp ( argv[index], "archive" ) == 0  ) {
                 index++;
                 index += this->command_archive ( argc - index, &argv[index] );
+            }
+            else if  ( std::string ( argv[index] ) == "help" ) {
+                index++;
+                notes_print_warning ( "<Once upon a time there will be a help message here.>\n" );
             }
             else if ( strcmp ( argv[index], "gc" ) == 0 ) {
                 index++;
