@@ -794,7 +794,7 @@ private:
         view[0].set_right_align ();
         view.add_column ( "Rev.", color_blue );
         view[1].set_right_align ();
-        view.add_column ( "Project", color_white_bold );
+        view.add_column ( "Project", color_magenta );
         view.add_column ( "Last edited", color_green );
         view.add_column ( "Description" );
 
