@@ -5,7 +5,7 @@ AC_CONFIG_SRCDIR([src/main.cc])
 ##
 # Setup automake to be silent and in foreign mode.
 ##
-AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects dist-xz])
 AM_SILENT_RULES([yes])
 
 ##
@@ -16,6 +16,7 @@ AC_PROG_CXX
 AX_CXX_COMPILE_STDCXX_11 
 AM_PROG_CC_C_O
 
+AC_USE_SYSTEM_EXTENSIONS
 ##
 # Readline
 ##
