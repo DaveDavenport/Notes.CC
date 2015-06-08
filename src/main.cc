@@ -1270,7 +1270,8 @@ private:
 
         notes_print_warning ( "Are you sure you want to delete note with title: '%s'\n",
                               note->get_title ().c_str () );
-        char *response = readline ( "(y/n): " );
+        notes_print_warning ( "Press 'a' to archive note instead.\n");
+        char *response = readline ( "(y/n/a): " );
         if ( response && strcmp ( response, "y" ) == 0 ) {
             notes_print_warning ( "Deleting note\n" );
             std::string path = note->get_relative_path ();
@@ -1281,6 +1282,26 @@ private:
                 // Delete the entry from the list.
                 delete note;
                 notes[nindex] = nullptr;
+            }
+        }
+        else if ( response && strcmp ( response, "a" )  == 0 ) {
+            std::string name = "Archive." + note->get_project_name ();
+            Project     *p   = this->get_or_create_project_from_name ( name );
+            if ( p == nullptr ) {
+                notes_print_error ( "Failed to create project by name: %s", name.c_str () );
+                return argc;
+            }
+            if ( p == note->get_project () ) {
+                notes_print_warning ( "Destination same as source: Ignoring.\n" );
+                return argc;
+            }
+            std::string old_path = note->get_relative_path ();
+            if ( note->move ( p ) ) {
+                std::string new_path = note->get_relative_path ();
+                this->repository_stage_file ( new_path );
+                this->repository_delete_file ( old_path );
+                // Move id
+                this->storage->move_id ( old_path, new_path );
             }
         }
         else{
