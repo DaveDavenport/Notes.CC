@@ -114,8 +114,8 @@ private:
     git_repository      *git_repo        = nullptr;
     git_index           * git_repo_index = nullptr;
     bool                git_changed      = false;
+    IDStorage           *storage         = nullptr;
     Settings            settings;
-    IDStorage           *storage = nullptr;
 
     // Output settings.
     bool show_archive = false;
@@ -1270,7 +1270,7 @@ private:
 
         notes_print_warning ( "Are you sure you want to delete note with title: '%s'\n",
                               note->get_title ().c_str () );
-        notes_print_warning ( "Press 'a' to archive note instead.\n");
+        notes_print_warning ( "Press 'a' to archive note instead.\n" );
         char *response = readline ( "(y/n/a): " );
         if ( response && strcmp ( response, "y" ) == 0 ) {
             notes_print_warning ( "Deleting note\n" );
@@ -1284,7 +1284,7 @@ private:
                 notes[nindex] = nullptr;
             }
         }
-        else if ( response && strcmp ( response, "a" )  == 0 ) {
+        else if ( response && strcmp ( response, "a" ) == 0 ) {
             std::string name = "Archive." + note->get_project_name ();
             Project     *p   = this->get_or_create_project_from_name ( name );
             if ( p == nullptr ) {
@@ -1557,7 +1557,7 @@ private:
 
             // Find project.
             Project *p = this;
-            if ( filename != path ) {
+            if ( filename != NULL && filename != path ) {
                 *( filename - 1 ) = '\0';
                 for ( unsigned int iter = 0; iter < strlen ( path ); iter++ ) {
                     if ( path[iter] == '/' ) {
