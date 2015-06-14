@@ -94,6 +94,11 @@ bool NotesFilter::add_keyword_filter ( std::string &value )
     if ( index != std::string::npos ) {
         if ( value.substr ( 0, index ) == "project" ) {
             auto projectn = value.substr ( index + 1, std::string::npos );
+            bool cond     = true;
+            if ( projectn[0] == '-' ) {
+                cond     = false;
+                projectn = projectn.substr ( 1, std::string::npos );
+            }
             for ( auto iter = start_notes.begin (); iter != start_notes.end (); iter++ ) {
                 Note *note = *iter;
 
@@ -102,10 +107,10 @@ bool NotesFilter::add_keyword_filter ( std::string &value )
                     continue;
                 }
                 auto npn    = note->get_project_name ();
-                bool remove = true;
+                bool remove = cond;
                 if ( npn.size () >= projectn.size () ) {
-                    if ( strcasestr ( npn.c_str (), projectn.c_str () ) != nullptr ) {
-                        remove = false;
+                    if ( ( strcasestr ( npn.c_str (), projectn.c_str () ) != nullptr ) ) {
+                        remove = !cond;
                     }
                 }
                 if ( remove ) {
@@ -125,6 +130,11 @@ void NotesFilter::add_filter ( std::string value )
         return;
     }
     const char *val_cstr = value.c_str ();
+    bool       cond      = true;
+    if ( val_cstr[0] == '-' ) {
+        cond = false;
+        val_cstr++;
+    }
     for ( auto iter = start_notes.begin (); iter != start_notes.end (); iter++ ) {
         Note *note = *iter;
 
@@ -133,14 +143,14 @@ void NotesFilter::add_filter ( std::string value )
             continue;
         }
 
-        bool remove = true;
+        bool remove = cond;
 
         if ( strcasestr ( note->get_title ().c_str (), val_cstr ) != NULL ) {
-            remove = false;
+            remove = !cond;
         }
         else
         if ( strcasestr ( note->get_project_name ().c_str (), val_cstr ) != NULL ) {
-            remove = false;
+            remove = !cond;
         }
 
         if ( remove ) {
