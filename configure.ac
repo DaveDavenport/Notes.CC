@@ -25,7 +25,7 @@ AC_CHECK_LIB([readline], [readline])
 AC_CHECK_HEADERS(readline/history.h readline/readline.h)
 
 AC_CHECK_LIB([markdown], [markdown])
-AC_CHECK_HEADERS(mkdio.h)
+AC_CHECK_HEADERS(mkdio.h,,AC_MSG_ERROR("Could not find libmarkdown header file: mkdio.h"))
 ##
 # Check dependencies
 ##
