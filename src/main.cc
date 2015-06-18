@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
+#include <unistd.h>
 #include <string>
 #include <cstring>
 #include <list>
@@ -46,7 +47,11 @@
 #include <IDStorage.h>
 #include <Filter.h>
 
-#include <git2.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <stdio.h>
+#include <unistd.h>
 
 // Readline
 #include <readline/readline.h>
@@ -111,10 +116,8 @@ private:
 // Root project.
     std::vector<Note *> notes;
 
-    git_repository      *git_repo        = nullptr;
-    git_index           * git_repo_index = nullptr;
-    bool                git_changed      = false;
-    IDStorage           *storage         = nullptr;
+    bool                git_changed = false;
+    IDStorage           *storage    = nullptr;
     Settings            settings;
 
     // Output settings.
@@ -126,6 +129,7 @@ public:
     }
     ~NotesCC()
     {
+        notes_print_warning ( "Exiting\n" );
         // Commit lingering changes.
         if ( git_changed ) {
             notes_print_info ( "Commiting changes to git.\n" );
@@ -142,16 +146,6 @@ public:
             storage = nullptr;
         }
 
-        // Clean git references.
-        if ( git_repo_index != nullptr ) {
-            git_index_free ( git_repo_index );
-            git_repo_index = nullptr;
-        }
-
-        if ( git_repo != nullptr ) {
-            git_repository_free ( git_repo );
-            git_repo = nullptr;
-        }
         // Clear internal state.
         clear ();
     }
@@ -233,26 +227,6 @@ public:
             storage = new IDStorage ( settings.get_repository () );
         }
 
-        // Check git repository.
-        if ( git_repository_open ( &git_repo, db_path ) != 0 ) {
-            notes_print_error ( "The repository directory '%s' is not a git repository.\n",
-                                db_path );
-            notes_print_error ( "Please initialize a new repository using git init.\n" );
-            return false;
-        }
-        // Ignore the .idcache.
-        // This should not show up when checking the repository.
-        if ( git_ignore_add_rule ( git_repo, ".idcache" ) != 0 ) {
-            notes_print_warning ( "Failed to ignore the idcache in the repository.\n" );
-            const git_error *e = giterr_last ();
-            if ( e != nullptr ) {
-                notes_print_warning ( "%s: %s\n", e->klass, e->message );
-            }
-        }
-        if ( !this->check_repository_state () ) {
-            return false;
-        }
-
         // Do a pull, this will reload the DB when needed.
         if ( !settings.get_offline () ) {
             if ( !settings.get_nopull () ) {
@@ -293,31 +267,45 @@ private:
     /**
      * Repository interaction functions.
      */
-    git_commit * repository_get_last_commit ( )
+    int exec_command ( const char *cmd, const char *const args[] )
     {
-        int        rc;
-        git_commit * commit = NULL;   /* the result */
-        git_oid    oid_parent_commit; /* the SHA1 for last commit */
+        pid_t pid;
 
-        /* resolve HEAD into a SHA1 */
-        rc = git_reference_name_to_id ( &oid_parent_commit, git_repo, "HEAD" );
-        if ( rc == 0 ) {
-            /* get the actual commit structure */
-            rc = git_commit_lookup ( &commit, git_repo, &oid_parent_commit );
-            if ( rc == 0 ) {
-                return commit;
+        switch ( pid = vfork () )
+        {
+        case -1:    /* Error */
+            notes_print_error ( "Failed to run %s: %s\n", cmd, strerror ( errno ) );
+            return 1;
+        case 0:     /* child */
+            int i;
+            {
+                int na = 0;
+                for (; args[na] != nullptr; na++ ) {
+                    ;
+                }
+                char **vargs = (char * *) malloc ( ( na + 1 ) * sizeof ( char * ) );
+                for ( int i = 0; i < na; i++ ) {
+                    vargs[i]     = strdup ( args[i] );
+                    vargs[i + 1] = nullptr;
+                }
+                execvp ( cmd, vargs );
+                for ( int i = 0; i < na; i++ ) {
+                    free ( vargs[i] );
+                }
+                free ( vargs );
             }
+            _exit ( 127 );
         }
-        return NULL;
+        waitpid ( pid, NULL, 0 );
+        return 0;
     }
-
 
     void repository_delete_file ( std::string path )
     {
         notes_print_info ( "Delete file: %s\n", path.c_str () );
-
-        int rc = git_index_remove_bypath ( git_repo_index, path.c_str () );
-        if ( rc != 0 ) {
+        const char *const args[] = { "git", "-C", this->get_path ().c_str (), "rm", "--cached", path.c_str (), NULL };
+        int               retv   = exec_command ( "git", args );
+        if ( retv != 0 ) {
             notes_print_error ( "Failed add changes to index.\n" );
         }
         git_changed = true;
@@ -326,8 +314,10 @@ private:
     {
         notes_print_info ( "Staging file: %s\n", path.c_str () );
 
-        int rc = git_index_add_bypath ( git_repo_index, path.c_str () );
-        if ( rc != 0 ) {
+        const char *const args[] = { "git",         "-C", this->get_path ().c_str (), "add",
+                                     path.c_str (), NULL };
+        int               retv = exec_command ( "git", args );
+        if ( retv != 0 ) {
             notes_print_error ( "Failed add changes to index.\n" );
         }
         git_changed = true;
@@ -335,408 +325,29 @@ private:
 
     bool repository_commit_changes ( )
     {
-        git_oid       tree_oid;
-        git_oid       oid_commit;
-        git_tree      *tree_cmt;
-        git_signature *sign;
-
-
-        if ( git_signature_default ( &sign, git_repo ) == GIT_ENOTFOUND ) {
-            git_signature_new ( (git_signature * *) &sign,
-                                "NotesCC", "dummy@nothere", 123456789, 0 );
-        }
-
-
-        // Create a tree to commit.
-        int rc = git_index_write_tree ( &tree_oid, git_repo_index );
-        if ( rc == 0 ) {
-            // Lookup the created tree,
-            rc = git_tree_lookup ( &tree_cmt, git_repo, &tree_oid );
-            if ( rc == 0 ) {
-                // Get last commit.
-                git_commit       *last_commit = repository_get_last_commit ( );
-                // If no last commit, create root commit.
-                int              entries = ( last_commit == nullptr ) ? 0 : 1;
-                // Create new commit.
-                const git_commit *commits[] = { last_commit };
-                git_commit_create ( &oid_commit,
-                                    git_repo,
-                                    "HEAD",
-                                    sign, sign,
-                                    NULL,
-                                    "NotesCC autocommit.\n",
-                                    tree_cmt, entries, commits );
-                git_tree_free ( tree_cmt );
-                if ( last_commit ) {
-                    git_commit_free ( last_commit );
-                }
-            }
-        }
-        git_signature_free ( sign );
-
-        rc = git_index_write ( git_repo_index );
-        if ( rc != 0 ) {
-            notes_print_error ( "Failed to write index to disc.\n" );
+        const char *const args[] = { "git",    "-C",      this->get_path ().c_str (),
+                                     "commit",
+                                     "-m",     "Updates", NULL };
+        int               retv = exec_command  ( "git", args );
+        if ( retv != 0 ) {
+            notes_print_error ( "Failed commit\n" );
             return false;
         }
-
         return true;
     }
 
-    // TODO: Clean this (fetch & full )mess up.
-    bool repository_fetch ()
-    {
-        git_remote *remote = nullptr;
-        int        rc      = git_remote_load ( &remote, git_repo, "origin" );
-        if ( rc != 0 ) {
-            const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to load remote 'origin'\n" );
-            if ( e != nullptr ) {
-                notes_print_error ( "Error: %s\n", e->message );
-            }
-            return false;
-        }
-
-        git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
-        callbacks.credentials = cred_acquire_cb;
-        git_remote_set_callbacks ( remote, &callbacks );
-
-        rc = git_remote_fetch ( remote, NULL, NULL );
-        if ( rc != 0 ) {
-            const git_error *e = giterr_last ();
-            if ( e != nullptr ) {
-                notes_print_error ( "Failed to access remote 'origin': %s\n", e->message );
-            }
-            else {
-                notes_print_error ( "Failed to access remote 'origin'.\n" );
-                notes_print_error ( "please check that fetching works.\n" );
-            }
-            git_remote_free ( remote );
-            return false;
-        }
-        git_remote_free ( remote );
-        return true;
-    }
     bool repository_push ()
     {
-        // Check
-        {
-            git_reference *headref = nullptr;
-            git_reference *href;
-            int           ret = git_repository_head ( &href, git_repo );
-            if ( ret == 0 ) {
-                char *path = nullptr;
-                if ( asprintf ( &path, "refs/remotes/origin/%s", git_reference_shorthand ( href ) ) > 0 ) {
-                    ret = git_reference_lookup ( &headref, git_repo, path );
-                    free ( path );
-                    if ( ret == 0 ) {
-                        if ( git_reference_cmp ( headref, href ) == 0 ) {
-                            notes_print_info ( "Nothing to push.\n" );
-
-                            git_reference_free ( headref );
-                            git_reference_free ( href );
-                            return false;
-                        }
-
-                        git_reference_free ( headref );
-                    }
-                    else{
-                        const git_error *e = giterr_last ();
-                        if ( e != nullptr ) {
-                            notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
-                        }
-                        notes_print_error ( "Failed to get head remote.\n" );
-                    }
-                }
-                git_reference_free ( href );
-            }
-            else{
-                const git_error *e = giterr_last ();
-                if ( e != nullptr ) {
-                    notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
-                }
-                notes_print_error ( "Failed to get head.\n" );
-            }
-        }
-        notes_print_info ( "Connecting to 'origin'\n" );
-        git_remote *remote = nullptr;
-        int        rc      = git_remote_load ( &remote, git_repo, "origin" );
-        if ( rc != 0 ) {
-            const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to load remote 'origin': %s\n", e->message );
-            return false;
-        }
-
-        git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
-        callbacks.credentials = cred_acquire_cb;
-        git_remote_set_callbacks ( remote, &callbacks );
-
-        rc = git_remote_connect ( remote, GIT_DIRECTION_PUSH );
-        if ( rc != 0 ) {
-            const git_error *e = giterr_last ();
-            if ( e != nullptr ) {
-                notes_print_error ( "Failed to access remote 'origin': %s\n", e->message );
-            }
-            else {
-                notes_print_error ( "Failed to access remote 'origin'.\n" );
-                notes_print_error ( "please check that pushing works.\n" );
-            }
-            git_remote_free ( remote );
-            return false;
-        }
-        notes_print_info ( "Pushing data\n" );
-        git_push *out;
-        rc = git_push_new ( &out, remote );
-        if ( rc != 0 ) {
-            const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to setup push to remote 'origin': %s\n", e->message );
-            git_remote_free ( remote );
-            return false;
-        }
-
-        git_reference *ref;
-        rc = git_repository_head ( &ref, git_repo );
-        if ( rc != 0 ) {
-            const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to get head: %s\n", e->message );
-            git_remote_free ( remote );
-            return false;
-        }
-        // Push to master branch.
-        rc = git_push_add_refspec ( out, git_reference_name ( ref ) );
-        git_reference_free ( ref );
-        if ( rc != 0 ) {
-            const git_error *e = giterr_last ();
-            notes_print_error ( "Failed to add refspec push to remote 'origin'.\n" );
-            if ( e != nullptr ) {
-                notes_print_error ( "Error: %s\n", e->message );
-            }
-            git_remote_free ( remote );
-            return false;
-        }
-        rc = git_push_finish ( out );
-        if ( rc != 0 ) {
-            const git_error *e = giterr_last ();
-            if ( e != nullptr ) {
-                notes_print_error ( "Failed to push to remote 'origin': %s\n", e->message );
-            }
-            else {
-                notes_print_error ( "Failed to push to remote 'origin'. Please try manually.\n" );
-            }
-            git_remote_free ( remote );
-            return false;
-        }
-
-        if ( !git_push_unpack_ok ( out ) ) {
-            notes_print_error ( "Failed to push to remote location.\n" );
-
-            git_push_status_foreach ( out,
-                                      [] ( const char *a, const char *b, __attribute__ ( ( unused ) ) void *data ) {
-                                          notes_print_error ( "Failed to push ref: %s %s\n", a, b );
-                                          return 0;
-                                      }, nullptr );
-        }
-        git_push_free ( out );
-
-
-        git_remote_disconnect ( remote );
-        git_remote_free ( remote );
-
-        notes_print_info ( "Fetching from 'origin'\n" );
-        return repository_fetch ();
+        const char *const args[] = { "git", "-C", this->get_path ().c_str (), "push", NULL };
+        int               retv   = exec_command ( "git", args );
+        return retv == 0;
     }
     bool repository_pull ( )
     {
-        // Commit changes if exists.
-        if ( git_changed ) {
-            notes_print_info ( "Commiting changes to git.\n" );
-            repository_commit_changes ();
-            git_changed = false;
-        }
-        notes_print_info ( "Fetching from 'origin'\n" );
-        if ( !repository_fetch () ) {
-            return false;
-        }
-
-        notes_print_info ( "Validating merge\n" );
-
-        git_reference *headref = NULL;
-        int           ret      = git_reference_lookup ( &headref, git_repo, "FETCH_HEAD" );
-        if ( ret != 0 ) {
-            const git_error *e = giterr_last ();
-            if ( e != nullptr ) {
-                notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
-            }
-            notes_print_error ( "Failed to look up references for merge head\n" );
-            return false;
-        }
-
-        git_merge_preference_t pref;
-        git_merge_analysis_t   analysis;
-        ret = git_merge_analysis ( &analysis, &pref, git_repo, (const git_merge_head * *) &headref, 1 );
-
-        if ( ret != 0 ) {
-            const git_error *e = giterr_last ();
-            if ( e != nullptr ) {
-                notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
-            }
-            notes_print_error ( "Failed to analyze merge \n" );
-            git_reference_free ( headref );
-            return false;
-        }
-
-        if ( ( analysis & GIT_MERGE_ANALYSIS_FASTFORWARD ) > 0 ) {
-            notes_print_info ( "Fast forward merge required.\n" );
-            git_reference *ref, *href;
-
-
-            ret = git_repository_head ( &href, git_repo );
-            if ( ret != 0 ) {
-                notes_print_error ( "Failed to get repository head\n" );
-                git_reference_free ( headref );
-                return false;
-            }
-
-            if ( git_reference_shorthand ( href ) == nullptr ) {
-                notes_print_error ( "Failed to get current repository branch name\n" );
-                git_reference_free ( headref );
-                git_reference_free ( href );
-                return false;
-            }
-            // Get branch
-            git_branch_lookup ( &ref, git_repo, git_reference_shorthand ( href ), GIT_BRANCH_LOCAL );
-
-            git_reference_free ( href );
-
-            if ( !git_branch_is_head ( ref ) ) {
-                notes_print_error ( "Branch head is not current head\n" );
-                git_reference_free ( headref );
-                return false;
-            }
-
-            git_reference *newf;
-            git_object    *obj;
-            ret = git_reference_peel ( &obj, headref, GIT_OBJ_COMMIT );
-            if ( ret != 0 ) {
-                const git_error *e = giterr_last ();
-                if ( e != nullptr ) {
-                    notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
-                }
-                notes_print_error ( "Failed to fast-forward the master branch.\n" );
-                git_reference_free ( ref );
-                git_reference_free ( headref );
-                return false;
-            }
-
-            const git_oid * commit_id = git_object_id ( obj );
-            ret = git_reference_set_target ( &newf, ref, commit_id, NULL, "fast-forward" );
-            git_reference_free ( ref );
-            git_object_free ( obj );
-            if ( ret != 0 ) {
-                const git_error *e = giterr_last ();
-                if ( e != nullptr ) {
-                    notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
-                }
-                notes_print_error ( "Failed to fast-forward the master branch.\n" );
-                git_reference_free ( headref );
-                return false;
-            }
-
-            // Update working tree.
-            git_checkout_options checkout_opts = GIT_CHECKOUT_OPTIONS_INIT;
-            checkout_opts.checkout_strategy = GIT_CHECKOUT_FORCE;
-            ret                             = git_checkout_head ( git_repo, &checkout_opts );
-            if ( ret != 0 ) {
-                const git_error *e = giterr_last ();
-                if ( e != nullptr ) {
-                    notes_print_error ( "Error: %d/%d: %s\n", ret, e->klass, e->message );
-                }
-                notes_print_error ( "Failed to checkout latest changes into Work Tree.\n" );
-                git_reference_free ( headref );
-                return false;
-            }
-            // Clear old index.
-            git_index_read ( git_repo_index, false );
-
-            this->clear ();
-            this->Load ();
-            // This reloads the id storage with the current
-            // Available notes.
-            // Basically deleting old unused id's.
-            this->storage->gc ( this->notes );
-            return true;
-        }
-        else if ( ( analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE ) > 0 ) {
-            notes_print_info ( "No change required.\n" );
-        }
-        else {
-            notes_print_error ( "The repository cannot be fast forwarded, please do a merge first\n" );
-            git_reference_free ( headref );
-            return false;
-        }
-
-        git_reference_free ( headref );
-
-        return false;
+        const char *const args[] = { "git", "-C", this->get_path ().c_str (), "pull", NULL };
+        int               retv   = exec_command ( "git", args );
+        return retv == 0;
     }
-
-    bool check_repository_state ()
-    {
-        // Check if it is in a sane state.
-        int state = git_repository_state ( git_repo );
-        if ( state != GIT_REPOSITORY_STATE_NONE ) {
-            notes_print_error ( "The repository is not in a clean state.\n" );
-            notes_print_error ( "Please resolve any outstanding issues first.\n" );
-            return false;
-        }
-        // Check bare directory
-        if ( git_repository_is_bare ( git_repo ) ) {
-            notes_print_error ( "Bare repositories are not supported.\n" );
-            return false;
-        }
-
-        // Check open changes.
-        git_status_list    *gsl = nullptr;
-        git_status_options opts = GIT_STATUS_OPTIONS_INIT;
-        opts.version = GIT_STATUS_OPTIONS_VERSION;
-        opts.show    = GIT_STATUS_SHOW_INDEX_AND_WORKDIR;
-        opts.flags   = GIT_STATUS_OPT_INCLUDE_UNTRACKED;
-
-        if ( git_status_list_new ( &gsl, git_repo, &opts ) != 0 ) {
-            notes_print_error ( "Failed to get repository status.\n" );
-            return false;
-        }
-
-        size_t i, maxi = git_status_list_entrycount ( gsl );
-        bool   clean = true;
-        int    mask  = 0;
-        for ( i = 0; i < maxi; i++ ) {
-            const git_status_entry *s = git_status_byindex ( gsl, i );
-            if ( s->status != GIT_STATUS_CURRENT ) {
-                clean = false;
-                mask |= s->status;
-            }
-        }
-        git_status_list_free ( gsl );
-
-        if ( !clean ) {
-            if ( ( mask & GIT_STATUS_WT_NEW ) == GIT_STATUS_WT_NEW ) {
-                notes_print_warning ( "There are untracked files in your repository\n" );
-            }
-            else {
-                notes_print_error ( "There are modified files in your repository\n" );
-                notes_print_error ( "Please fix these and commit the changes\n" );
-                return false;
-            }
-        }
-
-        if ( git_repository_index ( &git_repo_index, git_repo ) != 0 ) {
-            notes_print_error ( "Failed to read index from disc.\n" );
-            return false;
-        }
-        return true;
-    }
-
 
 
     void clear ()
@@ -1047,11 +658,6 @@ private:
     }
 
 private:
-    static int cred_acquire_cb ( git_cred** cred, const char*,
-                                 const char *user, unsigned int, void* )
-    {
-        return git_cred_ssh_key_from_agent ( cred, user );
-    }
 
     int command_move ( int argc, char **argv )
     {
@@ -1541,16 +1147,59 @@ private:
         }
     }
 
+    static void sigchld ( int i )
+    {
+        wait ( 0 );
+    }
+
+    FILE *sopen ()
+    {
+        int   fds[2];
+        pid_t pid;
+
+        if ( socketpair ( AF_UNIX, SOCK_STREAM, 0, fds ) < 0 ) {
+            return NULL;
+        }
+
+        signal ( SIGCHLD, sigchld );
+
+        switch ( pid = vfork () )
+        {
+        case -1:        /* Error */
+            close ( fds[0] );
+            close ( fds[1] );
+            return NULL;
+        case 0:         /* child */
+            close ( fds[0] );
+            dup2 ( fds[1], 0 );
+            dup2 ( fds[1], 1 );
+            close ( fds[1] );
+            execlp ( "git", "git", "-C", this->get_path ().c_str (),
+                     "ls-tree", "-r", "--name-only", "--full-name", "HEAD", NULL );
+            _exit ( 127 );
+        }
+        /* parent */
+        close ( fds[1] );
+        return fdopen ( fds[0], "r+" );
+    }
+
+
+
+
     void Load ( )
     {
         // Iterate over all files in the git index.
-        size_t i, maxi = git_index_entrycount ( git_repo_index );
-        for ( i = 0; i < maxi; i++ ) {
-            const git_index_entry *entry = git_index_get_byindex ( git_repo_index, i );
+        FILE *f = sopen ();
+        if ( f == nullptr ) {
+            notes_print_error ( "Failed to list files\n" );
+        }
+        char buffer[2048];
+        while ( fgets ( buffer, 2048, f ) != NULL ) {
+            buffer[strlen ( buffer ) - 1] = '\0';
             // Do some path parsing magick.
-            char                  *path = strdup ( entry->path );
+            char *path = strdup ( buffer );
             // Find filename.
-            char                  *filename = nullptr;
+            char *filename = nullptr;
             for ( int iter = strlen ( path ) - 1; iter >= 0 && path[iter] != '/'; iter-- ) {
                 filename = &path[iter];
             }
@@ -1572,7 +1221,7 @@ private:
             this->notes.push_back ( note );
             free ( path );
         }
-
+        fclose ( f );
         // Gives them UIDs.
         for ( auto note : this->notes ) {
             note->set_id ( storage->get_id ( note->get_relative_path () ) );

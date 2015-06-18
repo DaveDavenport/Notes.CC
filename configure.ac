@@ -28,12 +28,5 @@ AC_CHECK_HEADERS(readline/history.h readline/readline.h, ,
 
 AC_CHECK_LIB([markdown], [markdown], , AC_MSG_ERROR("Could not find markdown library"))
 AC_CHECK_HEADERS(mkdio.h,,AC_MSG_ERROR("Could not find libmarkdown header file: mkdio.h"))
-##
-# Check dependencies
-##
-PKG_PROG_PKG_CONFIG
-
-PKG_CHECK_MODULES([libgit2], [libgit2])
-
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

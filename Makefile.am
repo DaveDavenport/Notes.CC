@@ -4,14 +4,13 @@
 bin_PROGRAMS=notescc
 
 LIBS=\
-    @libgit2_LIBS@\
     -lreadline\
     -lmarkdown
 
 AM_CXXFLAGS=\
-    @libgit2_CFLAGS@\
     -I$(top_srcdir)/include/\
-    -I$(top_builddir)/
+    -I$(top_builddir)/\
+	-Wno-write-strings -fpermissive
 
 notescc_SOURCES=\
     src/main.cc\
