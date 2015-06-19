@@ -346,6 +346,11 @@ private:
     {
         const char *const args[] = { "git", "-C", this->get_path ().c_str (), "pull", NULL };
         int               retv   = exec_command ( "git", args );
+        if(retv == 0) {
+            // TODO: check return value.
+            this->clear();
+            this->Load();
+        }
         return retv == 0;
     }
 
