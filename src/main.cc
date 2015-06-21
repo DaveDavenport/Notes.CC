@@ -346,10 +346,10 @@ private:
     {
         const char *const args[] = { "git", "-C", this->get_path ().c_str (), "pull", NULL };
         int               retv   = exec_command ( "git", args );
-        if(retv == 0) {
+        if ( retv == 0 ) {
             // TODO: check return value.
-            this->clear();
-            this->Load();
+            this->clear ();
+            this->Load ();
         }
         return retv == 0;
     }
@@ -1201,30 +1201,27 @@ private:
         char buffer[2048];
         while ( fgets ( buffer, 2048, f ) != NULL ) {
             buffer[strlen ( buffer ) - 1] = '\0';
-            // Do some path parsing magick.
-            char *path = strdup ( buffer );
             // Find filename.
             char *filename = nullptr;
-            for ( int iter = strlen ( path ) - 1; iter >= 0 && path[iter] != '/'; iter-- ) {
-                filename = &path[iter];
+            for ( int iter = strlen ( buffer ) - 1; iter >= 0 && buffer[iter] != '/'; iter-- ) {
+                filename = &buffer[iter];
             }
 
             // Find project.
             Project *p = this;
-            if ( filename != NULL && filename != path ) {
+            if ( filename != NULL && filename != buffer ) {
                 *( filename - 1 ) = '\0';
-                for ( unsigned int iter = 0; iter < strlen ( path ); iter++ ) {
-                    if ( path[iter] == '/' ) {
-                        path[iter] = '.';
+                for ( unsigned int iter = 0; iter < strlen ( buffer ); iter++ ) {
+                    if ( buffer[iter] == '/' ) {
+                        buffer[iter] = '.';
                     }
                 }
-                p = this->get_or_create_project_from_name ( path );
+                p = this->get_or_create_project_from_name ( buffer );
             }
 
             Note *note = new Note ( p, &settings, filename );
             // Add to the flat list in the main.
             this->notes.push_back ( note );
-            free ( path );
         }
         fclose ( f );
         // Gives them UIDs.
