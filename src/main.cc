@@ -295,8 +295,13 @@ private:
                 free ( vargs );
             }
             _exit ( 127 );
+        default:
+            break;
         }
-        waitpid ( pid, NULL, 0 );
+        // Wait until client is done.
+        if (pid > 0 ) {
+            waitpid ( pid, NULL, 0 );
+        }
         return 0;
     }
 
