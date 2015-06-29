@@ -299,7 +299,7 @@ private:
             break;
         }
         // Wait until client is done.
-        if (pid > 0 ) {
+        if ( pid > 0 ) {
             waitpid ( pid, NULL, 0 );
         }
         return 0;
@@ -308,8 +308,12 @@ private:
     void repository_delete_file ( std::string path )
     {
         notes_print_info ( "Delete file: %s\n", path.c_str () );
-        const char *const args[] = { "git", "-C", this->get_path ().c_str (), "rm", "--cached", path.c_str (), NULL };
-        int               retv   = exec_command ( "git", args );
+        const char *const args[] = { "git",
+                                     "-C",         this->get_path ().c_str (),
+                                     "rm",         "--cached",
+                                     path.c_str (),
+                                     NULL };
+        int               retv = exec_command ( "git", args );
         if ( retv != 0 ) {
             notes_print_error ( "Failed add changes to index.\n" );
         }
@@ -319,8 +323,10 @@ private:
     {
         notes_print_info ( "Staging file: %s\n", path.c_str () );
 
-        const char *const args[] = { "git",         "-C", this->get_path ().c_str (), "add",
-                                     path.c_str (), NULL };
+        const char *const args[] = { "git",
+                                     "-C", this->get_path ().c_str (),
+                                     "add",path.c_str (),
+                                     NULL };
         int               retv = exec_command ( "git", args );
         if ( retv != 0 ) {
             notes_print_error ( "Failed add changes to index.\n" );
@@ -330,9 +336,11 @@ private:
 
     bool repository_commit_changes ( )
     {
-        const char *const args[] = { "git",    "-C",      this->get_path ().c_str (),
+        const char *const args[] = { "git",
+                                     "-C",    this->get_path ().c_str (),
                                      "commit",
-                                     "-m",     "Updates", NULL };
+                                     "-m",    "Updates",
+                                     NULL };
         int               retv = exec_command  ( "git", args );
         if ( retv != 0 ) {
             notes_print_error ( "Failed commit\n" );
