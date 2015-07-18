@@ -1,4 +1,8 @@
-# Installation Guide
+# Notes.CC
+
+## Description
+
+Notes.CC helps organize your markdown based notes. Notes are fully versioned with git, and can be tagged with Project keywords.
 
 ## Dependencies
 
@@ -13,8 +17,7 @@ Building environment:
 Libraries:
 
  * libreadline
- * libmarkdown (libmarkdown2 on debian)
- * libgit2 (0.20 or later)
+ * libmarkdown (libmarkdown2-dev on debian)
 
 
 ## Compilation (from git)
