@@ -106,7 +106,7 @@ Other commands:
 
 **Usage:** `list` [FILTER]
 
-Lists all the notesi in a nice looking table-view  matching the FILTER (if filter is not set all
+Lists all the notes in a nice looking table-view  matching the FILTER (if filter is not set all
 notes are listed).
 
 
