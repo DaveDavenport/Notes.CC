@@ -38,14 +38,15 @@
 
 void IDStorage::read ()
 {
-    FILE *fp = fopen ( cache_path.c_str (), "r" );
-    char buffer[1024];
+    FILE   *fp           = fopen ( cache_path.c_str (), "r" );
+    size_t buffer_length = 0;
+    char   *buffer       = nullptr;
 
     if ( fp == nullptr ) {
         return;
     }
 
-    while ( fgets ( buffer, 1024, fp ) != nullptr ) {
+    while ( getline ( &buffer, &buffer_length, fp ) > 0 ) {
         char         *endpt = nullptr;
         unsigned int id     = (unsigned int) strtoul ( buffer, &endpt, 10 );
         if ( endpt != nullptr && *endpt != '\n' ) {
@@ -53,6 +54,9 @@ void IDStorage::read ()
             endpt[strlen ( endpt ) - 1] = '\0';
             idmap[endpt]                = id;
         }
+    }
+    if ( buffer != nullptr ) {
+        free ( buffer );
     }
     fclose ( fp );
 }

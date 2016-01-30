@@ -1183,11 +1183,11 @@ private:
 
         switch ( pid = vfork () )
         {
-        case -1:        /* Error */
+        case -1:            /* Error */
             close ( fds[0] );
             close ( fds[1] );
             return NULL;
-        case 0:         /* child */
+        case 0:             /* child */
             close ( fds[0] );
             dup2 ( fds[1], 0 );
             dup2 ( fds[1], 1 );
@@ -1211,9 +1211,12 @@ private:
         if ( f == nullptr ) {
             notes_print_error ( "Failed to list files\n" );
         }
-        char buffer[2048];
-        while ( fgets ( buffer, 2048, f ) != NULL ) {
-            buffer[strlen ( buffer ) - 1] = '\0';
+        size_t buffer_length = 0;
+        char   *buffer       = nullptr;
+        while ( getline ( &buffer, &buffer_length, f ) >= 0 ) {
+            if ( buffer[strlen ( buffer ) - 1] == '\n' ) {
+                buffer[strlen ( buffer ) - 1] = '\0';
+            }
             // Find filename.
             char *filename = nullptr;
             for ( int iter = strlen ( buffer ) - 1; iter >= 0 && buffer[iter] != '/'; iter-- ) {
@@ -1235,6 +1238,9 @@ private:
             Note *note = new Note ( p, &settings, filename );
             // Add to the flat list in the main.
             this->notes.push_back ( note );
+        }
+        if ( buffer != nullptr ) {
+            free ( buffer );
         }
         fclose ( f );
         // Gives them UIDs.

@@ -165,9 +165,10 @@ Note::Note( Project *project, Settings *settings, const char *filename ) :
     std::string fpath = project->get_path () + "/" + filename;
     FILE        *fp   = fopen ( fpath.c_str (), "r" );
     assert ( fp != nullptr );
-    char        buffer[1024];
-    int         start = 0;
-    while ( start < 2 && fgets ( buffer, 1024, fp ) != nullptr ) {
+    size_t      buffer_length = 0;
+    char        *buffer       = nullptr;
+    int         start         = 0;
+    while ( start < 2 && getline ( &buffer, &buffer_length, fp ) > 0 ) {
         // Only parse section between '-'.
         if ( buffer[0] == '-' ) {
             start++;
@@ -199,6 +200,9 @@ Note::Note( Project *project, Settings *settings, const char *filename ) :
                 }
             }
         }
+    }
+    if ( buffer != nullptr ) {
+        free ( buffer );
     }
 
     long body_poss = ftell ( fp );
@@ -266,9 +270,10 @@ Note::Note ( Project *p, Settings *settings ) :
 
 void Note::read_title (  FILE *fp )
 {
-    char buffer[1024];
+    size_t buffer_length = 0;
+    char   *buffer       = nullptr;
     // First line is title.
-    if ( fgets ( buffer, 1024, fp ) != nullptr ) {
+    if ( getline ( &buffer, &buffer_length, fp ) > 0 ) {
         int length = strlen ( buffer );
         if ( buffer[length - 1] == '\n' ) {
             buffer[length - 1] = '\0';
@@ -279,6 +284,9 @@ void Note::read_title (  FILE *fp )
             start++;
         }
         this->title = &buffer[start];
+    }
+    if ( buffer != nullptr ) {
+        free ( buffer );
     }
 }
 
@@ -400,12 +408,16 @@ bool Note::write_body ( FILE *fpout )
     }
 
     // Skip header.
-    char buffer[1024];
-    int  start = 0;
-    while ( start < 2 && fgets ( buffer, 1024, fp ) != nullptr ) {
+    int    start         = 0;
+    size_t buffer_length = 0;
+    char   *buffer       = nullptr;
+    while ( start < 2 && getline ( &buffer, &buffer_length, fp ) > 0 ) {
         if ( buffer[0] == '-' ) {
             start++;
         }
+    }
+    if ( buffer != nullptr ) {
+        free ( buffer );
     }
 
     this->copy_till_end_of_file ( fp, fpout );
@@ -618,9 +630,10 @@ MMIOT *Note::get_markdown_doc ( )
     }
 
     // Skip header.
-    char buffer[1024];
-    int  start = 0;
-    while ( start < 2 && fgets ( buffer, 1024, fp ) != nullptr ) {
+    char   *buffer       = nullptr;
+    size_t buffer_length = 0;
+    int    start         = 0;
+    while ( start < 2 && getline ( &buffer, &buffer_length, fp ) > 0 ) {
         if ( buffer[0] == '-' ) {
             start++;
         }
