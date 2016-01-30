@@ -163,8 +163,7 @@ Note::Note( Project *project, Settings *settings, const char *filename ) :
     project ( project ), settings ( settings ), filename ( filename )
 {
     std::string fpath = project->get_path () + "/" + filename;
-
-    FILE        *fp = fopen ( fpath.c_str (), "r" );
+    FILE        *fp   = fopen ( fpath.c_str (), "r" );
     assert ( fp != nullptr );
     char        buffer[1024];
     int         start = 0;

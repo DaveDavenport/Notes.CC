@@ -785,8 +785,8 @@ private:
                 // Validate the Project name only consists of characters and numbers.
                 if ( find_if ( pr_name.begin (), pr_name.end (),
                                [] ( char c ) {
-                                   return !( isalnum ( c ) );
-                               } ) != pr_name.end () ) {
+                    return !( isalnum ( c ) );
+                } ) != pr_name.end () ) {
                     notes_print_error ( "%s is an invalid Project name.\n", pr_name.c_str () );
                     return nullptr;
                 }
