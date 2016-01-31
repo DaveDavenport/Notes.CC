@@ -638,6 +638,9 @@ MMIOT *Note::get_markdown_doc ( )
             start++;
         }
     }
+    if ( buffer != nullptr ) {
+        free ( buffer );
+    }
 
     // Parse remainder of document.
     MMIOT *doc = mkd_in ( fp, 0 );
@@ -688,4 +691,43 @@ bool Note::import ( const std::string path )
     changed = true;
     fclose ( fp );
     return changed;
+}
+
+bool Note::search ( const std::regex &match )
+{
+    std::string fpath = project->get_path () + "/" + filename;
+    FILE        *fp   = fopen ( fpath.c_str (), "r" );
+    if ( fp == nullptr ) {
+        notes_print_error ( "Failed to open note: %s\n", fpath.c_str () );
+        return false;
+    }
+
+    // Skip header.
+    char   *buffer       = nullptr;
+    size_t buffer_length = 0;
+    int    start         = 0;
+    while ( start < 2 && getline ( &buffer, &buffer_length, fp ) > 0 ) {
+        if ( buffer[0] == '-' ) {
+            start++;
+        }
+    }
+    ssize_t l = 0;
+    while ( ( l = getline ( &buffer, &buffer_length, fp ) ) > 0 ) {
+        if ( buffer[l - 1] == '\n' ) {
+            buffer[l - 1] = '\0';
+        }
+        if ( std::regex_match ( buffer, match, std::regex_constants::match_any ) ) {
+            if ( buffer != nullptr ) {
+                free ( buffer );
+            }
+            fclose ( fp );
+            return true;
+        }
+    }
+    if ( buffer != nullptr ) {
+        free ( buffer );
+    }
+
+    fclose ( fp );
+    return false;
 }

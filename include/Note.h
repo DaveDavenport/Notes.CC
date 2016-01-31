@@ -29,6 +29,7 @@
 #define _XOPEN_SOURCE    700
 #include <time.h>
 #include <list>
+#include <regex>
 
 extern "C" {
 #include <mkdio.h>
@@ -137,6 +138,9 @@ public:
     bool export_to_file_raw ( const std::string file );
 
     bool import ( const std::string path );
+
+
+    bool search ( const std::regex &match );
 private:
     MMIOT *get_markdown_doc ();
     bool write_body ( FILE *fpout );

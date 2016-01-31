@@ -1155,6 +1155,37 @@ private:
                 index++;
                 storage->gc ( this->notes );
             }
+            else if ( strcmp ( argv[index], "search" ) == 0 ) {
+                index++;
+                if ( index < argc ) {
+                    NotesFilter filter ( this->notes );
+                    // Ignore archived notes.
+                    if ( show_archive ) {
+                        filter.filter_not_archive ();
+                    }
+                    else {
+                        filter.filter_archive ();
+                    }
+                    try {
+                        // Create Query:
+                        std::string query = ".*";
+                        query += argv[index];
+                        query += ".*";
+
+                        std::regex          rm ( query, std::regex_constants::icase | std::regex_constants::optimize );
+                        index++;
+                        std::vector <Note*> results;
+                        for ( auto &note : filter.get_filtered_notes () ) {
+                            if ( note->search (  rm ) ) {
+                                results.push_back ( note );
+                            }
+                        }
+                        this->display_notes ( results );
+                    } catch ( ... ) {
+                        std::cerr << "Failed to create regex" << std::endl;
+                    }
+                }
+            }
             else {
                 notes_print_error ( "Invalid command: '%s'\n", argv[index] );
                 return;
@@ -1244,7 +1275,7 @@ private:
         }
         fclose ( f );
         // Gives them UIDs.
-        for ( auto note : this->notes ) {
+        for ( auto &note : this->notes ) {
             note->set_id ( storage->get_id ( note->get_relative_path () ) );
         }
 
