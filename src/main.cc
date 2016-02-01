@@ -289,6 +289,7 @@ private:
                     vargs[i + 1] = nullptr;
                 }
                 execvp ( cmd, vargs );
+                printf("Error: %s\n", strerror(errno));
                 for ( int i = 0; i < na; i++ ) {
                     free ( vargs[i] );
                 }
@@ -307,9 +308,10 @@ private:
 
     void repository_delete_file ( std::string path )
     {
+        std::string repo_path =this->get_path();
         notes_print_info ( "Delete file: %s\n", path.c_str () );
         const char *const args[] = { "git",
-                                     "-C",         this->get_path ().c_str (),
+                                     "-C",         repo_path.c_str (),
                                      "rm",         "--cached",
                                      path.c_str (),
                                      NULL };
@@ -323,8 +325,9 @@ private:
     {
         notes_print_info ( "Staging file: %s\n", path.c_str () );
 
+        std::string repo_path =this->get_path();
         const char *const args[] = { "git",
-                                     "-C", this->get_path ().c_str (),
+                                     "-C",    repo_path.c_str (),
                                      "add",path.c_str (),
                                      NULL };
         int               retv = exec_command ( "git", args );
@@ -336,8 +339,9 @@ private:
 
     bool repository_commit_changes ( )
     {
+        std::string repo_path =this->get_path();
         const char *const args[] = { "git",
-                                     "-C",    this->get_path ().c_str (),
+                                     "-C",    repo_path.c_str (),
                                      "commit",
                                      "-m",    "Updates",
                                      NULL };
@@ -351,13 +355,15 @@ private:
 
     bool repository_push ()
     {
-        const char *const args[] = { "git", "-C", this->get_path ().c_str (), "push", NULL };
+        std::string path =this->get_path();
+        const char *const args[] = { "git", "-C", path.c_str (), "push", NULL };
         int               retv   = exec_command ( "git", args );
         return retv == 0;
     }
     bool repository_pull ( )
     {
-        const char *const args[] = { "git", "-C", this->get_path ().c_str (), "pull", NULL };
+        std::string path =this->get_path();
+        const char *const args[] = { "git", "-C", path.c_str (), "pull", NULL };
         int               retv   = exec_command ( "git", args );
         if ( retv == 0 ) {
             // TODO: check return value.
