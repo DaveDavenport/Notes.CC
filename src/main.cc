@@ -130,7 +130,6 @@ public:
     }
     ~NotesCC()
     {
-        notes_print_warning ( "Exiting\n" );
         // Commit lingering changes.
         if ( git_changed ) {
             notes_print_info ( "Commiting changes to git.\n" );
