@@ -30,7 +30,7 @@ _notes()
 {
 	curw="${COMP_WORDS[COMP_CWORD]}"
     unset COMP_WORDS[$COMP_CWORD]
-	COMPREPLY=($(compgen -W '$(notescc --complete --offline ${COMP_WORDS[@]:1})' -- $curw))
+	COMPREPLY=($(compgen -W '$(notescc --complete ${COMP_WORDS[@]:1})' -- $curw))
 }
 
 complete -F _notes notescc

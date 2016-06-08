@@ -39,11 +39,6 @@ public:
     const std::string &get_html_viewer ();
     const std::string &get_css_file ();
 
-    const bool get_offline ();
-    void set_offline ( bool offline );
-
-    const bool get_nopull ();
-    void set_nopull ( bool nopull );
 
     void set_repository ( std::string &repo_path );
 
@@ -54,8 +49,6 @@ private:
     std::string editor;
     std::string html_viewer;
     std::string css_file;
-    bool        offline = false;
-    bool        nopull  = false;
 };
 
 #endif

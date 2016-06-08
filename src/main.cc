@@ -96,6 +96,7 @@ const char * commands[] =
     "interactive",
     "pull",
     "push",
+    "sync",
     "archive",
     nullptr
 };
@@ -137,9 +138,7 @@ public:
             git_changed = false;
         }
         // Push it when needed.
-        if ( !settings.get_offline () ) {
-            this->repository_push ();
-        }
+        //    @TODO add message sync needed.
 
         if ( storage != nullptr ) {
             delete storage;
@@ -156,19 +155,7 @@ public:
             notes_print_quiet ();
         }
         for ( int index = 1; index < argc; index++ ) {
-            if ( strcmp ( argv[index], "--offline" ) == 0 ) {
-                memmove ( &argv[index], &argv[index + 1], sizeof ( char* ) * ( argc - index + 1 ) );
-                settings.set_offline ( true );
-                argc--;
-                index--;
-            }
-            else if ( strcmp ( argv[index], "--nopull" ) == 0 ) {
-                memmove ( &argv[index], &argv[index + 1], sizeof ( char* ) * ( argc - index + 1 ) );
-                settings.set_nopull ( true );
-                argc--;
-                index--;
-            }
-            else if ( strcmp ( argv[index], "--repo" ) == 0 && argc > ( index + 1 ) ) {
+            if ( strcmp ( argv[index], "--repo" ) == 0 && argc > ( index + 1 ) ) {
                 std::string repo_path = argv[index + 1];
 
                 settings.set_repository ( repo_path );
@@ -186,21 +173,14 @@ public:
             notes_print_info ( "Interactive mode\n" );
             interactive ();
         }
+        else if  ( argc >= 2 && strcmp ( argv[1], "sync" ) == 0 ) {
+            this->repository_pull ();
+            this->repository_push ();
+        }
         else if ( argc >= 2 && strcmp ( argv[1], "pull" ) == 0 ) {
-            if ( settings.get_offline () ) {
-                notes_print_error ( "You cannot pull when in offline mode.\n" );
-                return;
-            }
-            // Command is only needed if no auto pull is set.
-            if ( settings.get_nopull () ) {
-                this->repository_pull ();
-            }
+            this->repository_pull ();
         }
         else if ( argc >= 2 && strcmp ( argv[1], "push" ) == 0 ) {
-            if ( settings.get_offline () ) {
-                notes_print_error ( "You cannot push when in offline mode.\n" );
-                return;
-            }
             this->repository_push ();
         }
 
@@ -227,17 +207,6 @@ public:
             storage = new IDStorage ( settings.get_repository () );
         }
 
-        // Do a pull, this will reload the DB when needed.
-        if ( !settings.get_offline () ) {
-            if ( !settings.get_nopull () ) {
-                if ( this->repository_pull () ) {
-                    // Returns true when updated and loaded the new db.. Otherwise fall through and load
-                    // the db.
-                    return true;
-                }
-            }
-        }
-        // Load the notes.
         this->Load ( );
 
         return true;
@@ -289,7 +258,7 @@ private:
                     vargs[i + 1] = nullptr;
                 }
                 execvp ( cmd, vargs );
-                printf("Error: %s\n", strerror(errno));
+                printf ( "Error: %s\n", strerror ( errno ) );
                 for ( int i = 0; i < na; i++ ) {
                     free ( vargs[i] );
                 }
@@ -308,7 +277,7 @@ private:
 
     void repository_delete_file ( std::string path )
     {
-        std::string repo_path =this->get_path();
+        std::string       repo_path = this->get_path ();
         notes_print_info ( "Delete file: %s\n", path.c_str () );
         const char *const args[] = { "git",
                                      "-C",         repo_path.c_str (),
@@ -325,11 +294,11 @@ private:
     {
         notes_print_info ( "Staging file: %s\n", path.c_str () );
 
-        std::string repo_path =this->get_path();
-        const char *const args[] = { "git",
-                                     "-C",    repo_path.c_str (),
-                                     "add",path.c_str (),
-                                     NULL };
+        std::string       repo_path = this->get_path ();
+        const char *const args[]    = { "git",
+                                        "-C",    repo_path.c_str (),
+                                        "add",   path.c_str (),
+                                        NULL };
         int               retv = exec_command ( "git", args );
         if ( retv != 0 ) {
             notes_print_error ( "Failed add changes to index.\n" );
@@ -339,12 +308,12 @@ private:
 
     bool repository_commit_changes ( )
     {
-        std::string repo_path =this->get_path();
-        const char *const args[] = { "git",
-                                     "-C",    repo_path.c_str (),
-                                     "commit",
-                                     "-m",    "Updates",
-                                     NULL };
+        std::string       repo_path = this->get_path ();
+        const char *const args[]    = { "git",
+                                        "-C",    repo_path.c_str (),
+                                        "commit",
+                                        "-m",    "Updates",
+                                        NULL };
         int               retv = exec_command  ( "git", args );
         if ( retv != 0 ) {
             notes_print_error ( "Failed commit\n" );
@@ -355,14 +324,14 @@ private:
 
     bool repository_push ()
     {
-        std::string path =this->get_path();
+        std::string       path   = this->get_path ();
         const char *const args[] = { "git", "-C", path.c_str (), "push", NULL };
         int               retv   = exec_command ( "git", args );
         return retv == 0;
     }
     bool repository_pull ( )
     {
-        std::string path =this->get_path();
+        std::string       path   = this->get_path ();
         const char *const args[] = { "git", "-C", path.c_str (), "pull", NULL };
         int               retv   = exec_command ( "git", args );
         if ( retv == 0 ) {
@@ -791,8 +760,8 @@ private:
                 // Validate the Project name only consists of characters and numbers.
                 if ( find_if ( pr_name.begin (), pr_name.end (),
                                [] ( char c ) {
-                    return !( isalnum ( c ) );
-                } ) != pr_name.end () ) {
+                                   return !( isalnum ( c ) );
+                               } ) != pr_name.end () ) {
                     notes_print_error ( "%s is an invalid Project name.\n", pr_name.c_str () );
                     return nullptr;
                 }
