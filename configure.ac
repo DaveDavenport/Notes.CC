@@ -12,11 +12,15 @@ AM_SILENT_RULES([yes])
 # Check for compiler
 ##
 m4_include([m4/ax_cxx_compile_stdcxx_11.m4])
-AC_PROG_CXX
+AC_PROG_CXX([clang++ g++ c++])
 AX_CXX_COMPILE_STDCXX_11 
 AM_PROG_CC_C_O
 
 AC_USE_SYSTEM_EXTENSIONS
+dnl ---------------------------------------------------------------------
+dnl Base CFLAGS
+dnl ---------------------------------------------------------------------
+AM_CXXFLAGS="-Wall -Wextra -Wparentheses -Winline -pedantic  -Wunreachable-code"
 ##
 # Readline
 ##

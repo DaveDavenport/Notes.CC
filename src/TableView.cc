@@ -161,5 +161,4 @@ void TableView::print ()
         printf ( "\n" );
     }
     fputc ( '\n', stdout );
-    notes_print_info ( "Number notes: %lu\n", this->num_rows );
 }

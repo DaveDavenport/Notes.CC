@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string>
 #include <cstring>
 #include <list>
@@ -117,8 +118,9 @@ private:
 // Root project.
     std::vector<Note *> notes;
 
-    bool                git_changed = false;
-    IDStorage           *storage    = nullptr;
+    bool                require_sync = false;
+    bool                git_changed  = false;
+    IDStorage           *storage     = nullptr;
     Settings            settings;
 
     // Output settings.
@@ -134,7 +136,8 @@ public:
         if ( git_changed ) {
             notes_print_info ( "Commiting changes to git.\n" );
             repository_commit_changes ();
-            git_changed = false;
+            require_sync = true;
+            git_changed  = false;
         }
         // Push it when needed.
         //    @TODO add message sync needed.
@@ -146,6 +149,9 @@ public:
 
         // Clear internal state.
         clear ();
+        if ( require_sync ) {
+            notes_print_info ( color_yellow "Sync required\n" color_reset );
+        }
     }
     void pre_parse_settings ( int &argc, char **argv )
     {
@@ -199,15 +205,38 @@ public:
      */
     bool open_repository ( )
     {
-        const char *db_path = settings.get_repository ().c_str ();
-
+        std::string       repo_path = this->get_path ();
+        const char *const argsc[]   = { "git",
+                                        "-C",                   repo_path.c_str (),
+                                        "rev-parse",
+                                        "--is-inside-work-tree",
+                                        NULL };
+        auto              isdir = exec_command_read_result ( "git", argsc );
+        if ( strcasecmp ( isdir.c_str (), "true" ) != 0 ) {
+            notes_print_error ( "Notes repository is not a git directory\n" );
+            return false;
+        }
+        // @TODO  check for .git directory. (or ask git?)
         // Create the ID storage->
         if ( storage == nullptr ) {
             storage = new IDStorage ( settings.get_repository () );
         }
-
+        const char *const args[] = { "git",
+                                     "-C",       repo_path.c_str (),
+                                     "rev-parse",
+                                     "@{0}",
+                                     NULL };
+        auto              cur     = exec_command_read_result ( "git", args );
+        const char *const args1[] = { "git",
+                                      "-C",       repo_path.c_str (),
+                                      "rev-parse",
+                                      "@{u}",
+                                      NULL };
+        auto              up = exec_command_read_result ( "git", args1 );
+        if ( cur != up ) {
+            this->require_sync = true;
+        }
         this->Load ( );
-
         return true;
     }
 
@@ -272,6 +301,78 @@ private:
             waitpid ( pid, NULL, 0 );
         }
         return 0;
+    }
+    std::string exec_command_read_result ( const char *cmd, const char *const args[] )
+    {
+        pid_t pid;
+        int   filedes[2];
+        if ( pipe2 ( filedes, 0 ) == -1 ) {
+            perror ( "pipe" );
+            exit ( 1 );
+        }
+        pid = fork ();
+        switch ( pid )
+        {
+        case -1:        /* Error */
+            notes_print_error ( "Failed to run %s: %s\n", cmd, strerror ( errno ) );
+            return "";
+        case 0:         /* child */
+            int i;
+            {
+                close ( filedes[0] );
+                while ( ( dup2 ( filedes[1], STDOUT_FILENO ) == -1 ) && ( errno == EINTR ) ) {
+                }
+                int na = 0;
+                for (; args[na] != nullptr; na++ ) {
+                    ;
+                }
+                char **vargs = (char * *) malloc ( ( na + 1 ) * sizeof ( char * ) );
+                for ( int i = 0; i < na; i++ ) {
+                    vargs[i]     = strdup ( args[i] );
+                    vargs[i + 1] = nullptr;
+                }
+                execvp ( cmd, vargs );
+                for ( int i = 0; i < na; i++ ) {
+                    free ( vargs[i] );
+                }
+                free ( vargs );
+            }
+            _exit ( 127 );
+        default:
+            close ( filedes[1] );
+            break;
+        }
+        // Wait until client is done.
+        if ( pid > 0 ) {
+            waitpid ( pid, NULL, 0 );
+        }
+        std::string retv;
+        char        buffer[1024];
+        while ( 1 ) {
+            ssize_t count = read ( filedes[0], buffer, 1024 );
+            if ( count == -1 ) {
+                if ( errno == EINTR ) {
+                    continue;
+                }
+                else {
+                    perror ( "read" );
+                    break;
+                }
+            }
+            else if ( count == 0 ) {
+                break;
+            }
+            else {
+                buffer[count] = '\0';
+                retv         += buffer;
+            }
+        }
+        close ( filedes[0] );
+        // Strip newline.
+        if ( retv[retv.size () - 1] == '\n' ) {
+            retv[retv.size () - 1] = '\0';
+        }
+        return retv;
     }
 
     void repository_delete_file ( std::string path )
@@ -583,6 +684,7 @@ private:
             }
         }
         this->display_notes ( filter.get_filtered_notes () );
+        notes_print_info ( "Number notes: %lu\n", filter.get_filtered_notes ().size () );
         return iter;
     }
     int command_export ( int argc, char **argv )
@@ -698,9 +800,9 @@ private:
     int command_projects ( __attribute__( ( unused ) ) int argc, __attribute__( ( unused ) ) char **argv )
     {
         TableView view;
-        view.add_column ( "Project", color_white_bold );
-        view.add_column ( "Num. Notes", color_white );
-        view.add_column ( "Total Notes", color_white );
+        view.add_column ( "Project" );
+        view.add_column ( "Num. Notes", color_blue );
+        view.add_column ( "Total Notes", color_magenta );
         view[1].set_right_align ();
         view[2].set_right_align ();
         unsigned int row = 0;
@@ -711,6 +813,7 @@ private:
             }
         }
         view.print ();
+        notes_print_info ( "Number projects: %lu\n", row );
         return 0;
     }
 
