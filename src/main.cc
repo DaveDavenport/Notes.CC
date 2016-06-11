@@ -36,6 +36,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <string>
 #include <cstring>
 #include <list>
@@ -51,6 +52,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -200,6 +202,46 @@ public:
         }
     }
 
+    bool initial_setup ()
+    {
+        std::string repo_path = this->get_path ();
+        // Do intro
+        notes_print_error ( "Do you want Notes.CC to initialize this directory?\n" );
+        char *response = readline ( "(y/n): " );
+        if ( response && strcmp ( response, "y" ) == 0 ) {
+            // Try to make directory.
+            if ( mkdir ( repo_path.c_str (), 0750 ) != 0 ) {
+                if ( errno != EEXIST ) {
+                    notes_print_error ( "Failed to create directory: %s\n", strerror ( errno ) );
+                    return true;
+                }
+            }
+            const char *const args[] = { "git", "-C", repo_path.c_str (), "init", NULL };
+            auto              cur    = exec_command ( "git", args );
+            if ( cur != 0  ) {
+                return true;
+            }
+        }
+        {
+            const char * const args[] = { "git", "-C", repo_path.c_str (), "config", "user.name", NULL };
+            auto               val    = exec_command_read_result ( "git", args );
+            if ( val.size () == 0 ) {
+                const char * const args2[] = { "git", "-C", repo_path.c_str (), "config", "user.name", "Notes.CC", NULL };
+                exec_command ( "git", args2 );
+            }
+        }
+        {
+            const char *const args[] = { "git", "-C", repo_path.c_str (), "config", "user.email", NULL };
+            auto              val    = exec_command_read_result ( "git", args );
+            if ( val.size () == 0 ) {
+                const char *const args2[] = { "git", "-C", repo_path.c_str (), "config", "user.email", "note@Notes.CC", NULL };
+                exec_command ( "git", args2 );
+            }
+        }
+        /** Check for user.name and user.email */
+        return false;
+    }
+
     /**
      * Open the note repository.
      */
@@ -214,7 +256,10 @@ public:
         auto              isdir = exec_command_read_result ( "git", argsc );
         if ( strcasecmp ( isdir.c_str (), "true" ) != 0 ) {
             notes_print_error ( "Notes repository is not a git directory\n" );
-            return false;
+            if ( initial_setup () ) {
+                notes_print_error ( "Failed to initialize, giving up.\n" );
+                return false;
+            }
         }
         // @TODO  check for .git directory. (or ask git?)
         // Create the ID storage->
@@ -233,7 +278,10 @@ public:
                                       "@{u}",
                                       NULL };
         auto              up = exec_command_read_result ( "git", args1 );
-        if ( cur != up ) {
+        if ( up.size () == 0 ) {
+            // this->has_upstream = false;
+        }
+        else if ( cur != up ) {
             this->require_sync = true;
         }
         this->Load ( );
@@ -320,6 +368,8 @@ private:
             int i;
             {
                 close ( filedes[0] );
+                // ignore stderr.
+                close ( STDERR_FILENO );
                 while ( ( dup2 ( filedes[1], STDOUT_FILENO ) == -1 ) && ( errno == EINTR ) ) {
                 }
                 int na = 0;
@@ -1278,6 +1328,7 @@ private:
         wait ( 0 );
     }
 
+    // Merge this with the other file open.
     FILE *sopen ()
     {
         int   fds[2];
@@ -1297,7 +1348,9 @@ private:
             return NULL;
         case 0:             /* child */
             close ( fds[0] );
-            dup2 ( fds[1], 0 );
+            //        dup2 ( fds[1], 0 );
+            close ( STDIN_FILENO );
+            close ( STDERR_FILENO );
             dup2 ( fds[1], 1 );
             close ( fds[1] );
             execlp ( "git", "git", "-C", this->get_path ().c_str (),
