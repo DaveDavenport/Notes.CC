@@ -206,7 +206,7 @@ public:
     {
         std::string repo_path = this->get_path ();
         // Do intro
-        notes_print_error ( "Do you want Notes.CC to initialize this directory?\n" );
+        notes_print_info ( "Do you want Notes.CC to initialize this directory?\n" );
         char *response = readline ( "(y/n): " );
         if ( response && strcmp ( response, "y" ) == 0 ) {
             // Try to make directory.
@@ -255,7 +255,7 @@ public:
                                         NULL };
         auto              isdir = exec_command_read_result ( "git", argsc );
         if ( strcasecmp ( isdir.c_str (), "true" ) != 0 ) {
-            notes_print_error ( "Notes repository is not a git directory\n" );
+            notes_print_error ( "Notes directory '%s' is not a valid repository\n", repo_path.c_str() );
             if ( initial_setup () ) {
                 notes_print_error ( "Failed to initialize, giving up.\n" );
                 return false;
@@ -1334,7 +1334,7 @@ private:
         int   fds[2];
         pid_t pid;
 
-        if ( socketpair ( AF_UNIX, SOCK_STREAM, 0, fds ) < 0 ) {
+        if ( pipe2 ( fds, O_CLOEXEC ) < 0 ) {
             return NULL;
         }
 
@@ -1348,18 +1348,19 @@ private:
             return NULL;
         case 0:             /* child */
             close ( fds[0] );
-            //        dup2 ( fds[1], 0 );
             close ( STDIN_FILENO );
             close ( STDERR_FILENO );
-            dup2 ( fds[1], 1 );
+            dup2 ( fds[1], STDOUT_FILENO );
             close ( fds[1] );
             execlp ( "git", "git", "-C", this->get_path ().c_str (),
                      "ls-tree", "-r", "--name-only", "--full-name", "HEAD", NULL );
             _exit ( 127 );
+        default:
+            break;
         }
         /* parent */
         close ( fds[1] );
-        return fdopen ( fds[0], "r+" );
+        return fdopen ( fds[0], "r" );
     }
 
 
@@ -1371,6 +1372,7 @@ private:
         FILE *f = sopen ();
         if ( f == nullptr ) {
             notes_print_error ( "Failed to list files\n" );
+            return;
         }
         size_t buffer_length = 0;
         char   *buffer       = nullptr;
