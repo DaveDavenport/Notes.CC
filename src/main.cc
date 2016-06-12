@@ -261,7 +261,6 @@ public:
                 return false;
             }
         }
-        // @TODO  check for .git directory. (or ask git?)
         // Create the ID storage->
         if ( storage == nullptr ) {
             storage = new IDStorage ( settings.get_repository () );
