@@ -36,6 +36,8 @@ notescc_SOURCES=\
 indent: ${notescc_SOURCES}
 	uncrustify -c ${top_srcdir}/data/uncrustify.cfg --replace $^
 
+cppcheck: $(notescc_SOURCES)
+	cppcheck --std=c99 --platform=unix64 --enable=all -Uerror_dialog --inconclusive -I $(top_srcdir)/include/  $^
 
 ##
 # Extra files to pack in distribution

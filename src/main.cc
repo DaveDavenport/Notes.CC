@@ -218,7 +218,7 @@ public:
                 }
             }
             const char *const args[] = { "git", "-C", repo_path.c_str (), "init", NULL };
-            auto              cur    = exec_command ( "git", args );
+            auto              cur    = exec_command ( args );
             if ( cur != 0  ) {
                 return true;
             }
@@ -228,7 +228,7 @@ public:
             auto               val    = exec_command_read_result ( "git", args );
             if ( val.size () == 0 ) {
                 const char * const args2[] = { "git", "-C", repo_path.c_str (), "config", "user.name", "Notes.CC", NULL };
-                exec_command ( "git", args2 );
+                exec_command ( args2 );
             }
         }
         {
@@ -236,7 +236,7 @@ public:
             auto              val    = exec_command_read_result ( "git", args );
             if ( val.size () == 0 ) {
                 const char *const args2[] = { "git", "-C", repo_path.c_str (), "config", "user.email", "note@Notes.CC", NULL };
-                exec_command ( "git", args2 );
+                exec_command ( args2 );
             }
         }
         /** Check for user.name and user.email */
@@ -318,94 +318,95 @@ private:
     /**
      * Repository interaction functions.
      */
-    int exec_command ( const char *cmd, const char *const args[] )
+    int exec_command ( const char *const argv[] )
     {
+        char  **args = strvdup ( argv );
         pid_t pid;
 
         switch ( pid = vfork () )
         {
         case -1:    /* Error */
-            notes_print_error ( "Failed to run %s: %s\n", cmd, strerror ( errno ) );
+            notes_print_error ( "Failed to run %s: %s\n", argv[0], strerror ( errno ) );
+            strfreev ( args );
             return 1;
         case 0:     /* child */
-            int i;
-            {
-                int na = 0;
-                for (; args[na] != nullptr; na++ ) {
-                    ;
-                }
-                char **vargs = (char * *) malloc ( ( na + 1 ) * sizeof ( char * ) );
-                for ( int i = 0; i < na; i++ ) {
-                    vargs[i]     = strdup ( args[i] );
-                    vargs[i + 1] = nullptr;
-                }
-                execvp ( cmd, vargs );
-                printf ( "Error: %s\n", strerror ( errno ) );
-                for ( int i = 0; i < na; i++ ) {
-                    free ( vargs[i] );
-                }
-                free ( vargs );
-            }
+        {
+            close ( STDIN_FILENO );
+            close ( STDOUT_FILENO );
+            close ( STDERR_FILENO );
+            execvp ( args[0], args );
+        }
             _exit ( 127 );
         default:
             break;
         }
+        int status = 0;
         // Wait until client is done.
         if ( pid > 0 ) {
-            waitpid ( pid, NULL, 0 );
+            waitpid ( pid, &status, 0 );
         }
-        return 0;
+        strfreev ( args );
+        return WEXITSTATUS ( status );
+    }
+    // Used to reap child.
+    static void sigchld ( int i )
+    {
+        wait ( 0 );
+    }
+
+    // Merge this with the other file open.
+    bool exec_with_pipes ( int &fdout, int &fderr, const char * const argv[] )
+    {
+        char  **args = strvdup ( argv );
+        int   fds[2];
+        pid_t pid;
+
+        if ( pipe2 ( fds, O_CLOEXEC ) < 0 ) {
+            // Failed to create pipes.. @TODO throw internal error.
+            strfreev ( args );
+            return false;
+        }
+
+        signal ( SIGCHLD, sigchld );
+
+        switch ( pid = vfork () )
+        {
+        case -1:                /* Error */
+            close ( fds[0] );
+            close ( fds[1] );
+            strfreev ( args );
+            return false;
+        case 0:                 /* child */
+        {
+            close ( fds[0] );
+            // Don't want to inherit stdin or stderr.
+            // @TODO handle stdout later.
+            close ( STDIN_FILENO );
+            close ( STDERR_FILENO );
+            dup2 ( fds[1], STDOUT_FILENO );
+            close ( fds[1] );
+            execvp ( args[0], args );
+            _exit ( 127 );
+        }
+        default:
+            break;
+        }
+        /* parent */
+        close ( fds[1] );
+        fdout = fds[0];
+        strfreev ( args );
+        return true;
     }
     std::string exec_command_read_result ( const char *cmd, const char *const args[] )
     {
-        pid_t pid;
-        int   filedes[2];
-        if ( pipe2 ( filedes, 0 ) == -1 ) {
-            perror ( "pipe" );
-            exit ( 1 );
-        }
-        pid = fork ();
-        switch ( pid )
-        {
-        case -1:        /* Error */
-            notes_print_error ( "Failed to run %s: %s\n", cmd, strerror ( errno ) );
-            return "";
-        case 0:         /* child */
-            int i;
-            {
-                close ( filedes[0] );
-                // ignore stderr.
-                close ( STDERR_FILENO );
-                while ( ( dup2 ( filedes[1], STDOUT_FILENO ) == -1 ) && ( errno == EINTR ) ) {
-                }
-                int na = 0;
-                for (; args[na] != nullptr; na++ ) {
-                    ;
-                }
-                char **vargs = (char * *) malloc ( ( na + 1 ) * sizeof ( char * ) );
-                for ( int i = 0; i < na; i++ ) {
-                    vargs[i]     = strdup ( args[i] );
-                    vargs[i + 1] = nullptr;
-                }
-                execvp ( cmd, vargs );
-                for ( int i = 0; i < na; i++ ) {
-                    free ( vargs[i] );
-                }
-                free ( vargs );
-            }
-            _exit ( 127 );
-        default:
-            close ( filedes[1] );
-            break;
-        }
-        // Wait until client is done.
-        if ( pid > 0 ) {
-            waitpid ( pid, NULL, 0 );
-        }
+        int         fdout = -1, fderr = -1;
         std::string retv;
-        char        buffer[1024];
+        if ( !exec_with_pipes ( fdout, fderr, args ) ) {
+            return retv;
+        }
+        char buffer[1024];
         while ( 1 ) {
-            ssize_t count = read ( filedes[0], buffer, 1024 );
+            ssize_t count = read ( fdout, buffer, 1024 );
             if ( count == -1 ) {
                 if ( errno == EINTR ) {
                     continue;
@@ -423,7 +424,12 @@ private:
                 retv         += buffer;
             }
         }
-        close ( filedes[0] );
+        if ( fdout >= 0 ) {
+            close ( fdout );
+        }
+        else if ( fderr >= 0 ) {
+            close ( fderr );
+        }
         // Strip newline.
         if ( retv[retv.size () - 1] == '\n' ) {
             retv[retv.size () - 1] = '\0';
@@ -440,7 +446,7 @@ private:
                                      "rm",         "--cached",
                                      path.c_str (),
                                      NULL };
-        int               retv = exec_command ( "git", args );
+        int               retv = exec_command ( args );
         if ( retv != 0 ) {
             notes_print_error ( "Failed add changes to index.\n" );
         }
@@ -455,7 +461,7 @@ private:
                                         "-C",    repo_path.c_str (),
                                         "add",   path.c_str (),
                                         NULL };
-        int               retv = exec_command ( "git", args );
+        int               retv = exec_command ( args );
         if ( retv != 0 ) {
             notes_print_error ( "Failed add changes to index.\n" );
         }
@@ -470,7 +476,7 @@ private:
                                         "commit",
                                         "-m",    "Updates",
                                         NULL };
-        int               retv = exec_command  ( "git", args );
+        int               retv = exec_command  ( args );
         if ( retv != 0 ) {
             notes_print_error ( "Failed commit\n" );
             return false;
@@ -483,7 +489,7 @@ private:
         if ( this->require_sync ) {
             std::string       path   = this->get_path ();
             const char *const args[] = { "git", "-C", path.c_str (), "push", NULL };
-            int               retv   = exec_command ( "git", args );
+            int               retv   = exec_command ( args );
             this->require_sync = false;
             return retv == 0;
         }
@@ -493,7 +499,7 @@ private:
     {
         std::string       path   = this->get_path ();
         const char *const args[] = { "git", "-C", path.c_str (), "pull", NULL };
-        int               retv   = exec_command ( "git", args );
+        int               retv   = exec_command ( args );
         if ( retv == 0 ) {
             // TODO: check return value.
             this->clear ();
@@ -516,12 +522,6 @@ private:
             delete project;
         }
         child_projects.clear ();
-    }
-
-
-    void print_projects ()
-    {
-        this->print ();
     }
 
     std::string get_path ()
@@ -1332,58 +1332,23 @@ private:
             this->command_list ( 0, NULL );
         }
     }
-
-    static void sigchld ( int i )
-    {
-        wait ( 0 );
-    }
-
-    // Merge this with the other file open.
-    FILE *sopen ()
-    {
-        int   fds[2];
-        pid_t pid;
-
-        if ( pipe2 ( fds, O_CLOEXEC ) < 0 ) {
-            return NULL;
-        }
-
-        signal ( SIGCHLD, sigchld );
-
-        switch ( pid = vfork () )
-        {
-        case -1:            /* Error */
-            close ( fds[0] );
-            close ( fds[1] );
-            return NULL;
-        case 0:             /* child */
-            close ( fds[0] );
-            close ( STDIN_FILENO );
-            close ( STDERR_FILENO );
-            dup2 ( fds[1], STDOUT_FILENO );
-            close ( fds[1] );
-            execlp ( "git", "git", "-C", this->get_path ().c_str (),
-                     "ls-tree", "-r", "--name-only", "--full-name", "HEAD", NULL );
-            _exit ( 127 );
-        default:
-            break;
-        }
-        /* parent */
-        close ( fds[1] );
-        return fdopen ( fds[0], "r" );
-    }
-
-
-
-
     void Load ( )
     {
         // Iterate over all files in the git index.
-        FILE *f = sopen ();
-        if ( f == nullptr ) {
+        //
+        //    execlp ( "git", );
+        int               fdout, fderr;
+        const auto &      path   = this->get_path ();
+        const char *const args[] = { "git",         "-C",   path.c_str (), "ls-tree", "-r", "--name-only",
+                                     "--full-name", "HEAD", NULL };
+        if ( !exec_with_pipes ( fdout, fderr, args ) ) {
             notes_print_error ( "Failed to list files\n" );
             return;
         }
+        if ( fderr >= 0 ) {
+            close ( fderr );
+        }
+        FILE   *f            = fdopen ( fdout, "r" );
         size_t buffer_length = 0;
         char   *buffer       = nullptr;
         while ( getline ( &buffer, &buffer_length, f ) >= 0 ) {
@@ -1429,6 +1394,30 @@ private:
     {
         // Sort the notes.
         std::sort ( this->notes.begin (), this->notes.end (), notes_print_sort );
+    }
+
+    static void strfreev ( char **str )
+    {
+        if ( str == nullptr ) {
+            return;
+        }
+        for ( int i = 0; str != nullptr && str[i] != nullptr; i++ ) {
+            free ( str[i] );
+        }
+        free ( str );
+    }
+    char ** strvdup ( const char *const *str )
+    {
+        int na = 0;
+        for (; str != nullptr && str[na] != nullptr; na++ ) {
+            ;
+        }
+        char **retv = (char * *) malloc ( ( na + 1 ) * sizeof ( char* ) );
+        for ( int i = 0; i < na; i++ ) {
+            retv[i] = strdup ( str[i] );
+        }
+        retv[na] = nullptr;
+        return retv;
     }
 };
 

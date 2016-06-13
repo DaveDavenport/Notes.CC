@@ -108,7 +108,6 @@ uint32_t updateCRC32 ( unsigned char ch, uint32_t crc )
 int
 Note::mkd_dxhtmlpage ( MMIOT *p, int flags, FILE *out )
 {
-    char *title;
     extern char *mkd_doc_title ( MMIOT * );
     if ( mkd_compile ( p, flags ) ) {
         fprintf ( out, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" );
@@ -128,6 +127,7 @@ Note::mkd_dxhtmlpage ( MMIOT *p, int flags, FILE *out )
             }
         }
         fprintf ( out, "</style>\n" );
+        char *title;
         if ( ( title = mkd_doc_title ( p ) ) != nullptr ) {
             fprintf ( out, "<title>%s</title>\n", title );
         }
@@ -303,13 +303,13 @@ unsigned int Note::calculate_crc ( FILE *fp )
     return retv;
 }
 
-std::string Note::get_modtime ()
+std::string Note::get_modtime () const
 {
     char buffer[256];
     strftime ( buffer, 256, "%F %H:%M", &( this->last_edit_time ) );
     return std::string ( buffer );
 }
-void Note::print ()
+void Note::print () const
 {
     std::cout << this->id << " " << this->project->get_name ();
     char buffer[1024];
@@ -579,7 +579,7 @@ bool Note::move ( Project *p )
     return true;
 }
 
-bool Note::export_to_file_raw ( const std::string path )
+bool Note::export_to_file_raw ( const std::string &path )
 {
     FILE *fp = fopen ( path.c_str (), "w" );
     if ( fp == NULL ) {
@@ -596,7 +596,7 @@ bool Note::export_to_file_raw ( const std::string path )
     return true;
 }
 
-bool Note::export_to_file_html ( const std::string path )
+bool Note::export_to_file_html ( const std::string &path )
 {
     MMIOT *doc = get_markdown_doc ();
     if ( doc == nullptr ) {
@@ -648,7 +648,7 @@ MMIOT *Note::get_markdown_doc ( )
     return doc;
 }
 
-bool Note::import ( const std::string path )
+bool Note::import ( const std::string &path )
 {
     std::string fpath   = project->get_path () + "/" + filename;
     bool        changed = false;

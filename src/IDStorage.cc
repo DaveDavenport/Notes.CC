@@ -85,7 +85,7 @@ void IDStorage::gc ( std::vector<Note *> notes )
     changed = true;
     notes_print_info ( "Vacuumed the id Cache.\n" );
 }
-unsigned int IDStorage::get_id ( const std::string path )
+unsigned int IDStorage::get_id ( const std::string &path )
 {
     // Not efficient, but only done once at loading.
     auto i = idmap.find ( path );
@@ -111,9 +111,8 @@ unsigned int IDStorage::get_id ( const std::string path )
         id++;
     }
 }
-IDStorage::IDStorage ( const std::string &repo_path )
+IDStorage::IDStorage ( const std::string &repo_path ) : cache_path(repo_path+"/.idcache")
 {
-    this->cache_path = repo_path + "/.idcache";
 
     read ();
 }
@@ -123,7 +122,7 @@ IDStorage::~IDStorage ()
         write ();
     }
 }
-void IDStorage::move_id ( const std::string path_old, const std::string path_new )
+void IDStorage::move_id ( const std::string &path_old, const std::string &path_new )
 {
     if ( idmap.find ( path_old ) != idmap.end () ) {
         // Get id.
@@ -135,7 +134,7 @@ void IDStorage::move_id ( const std::string path_old, const std::string path_new
         changed         = true;
     }
 }
-void IDStorage::delete_id ( const std::string path_old )
+void IDStorage::delete_id ( const std::string &path_old )
 {
     if ( idmap.find ( path_old ) != idmap.end () ) {
         idmap.erase ( path_old );

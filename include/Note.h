@@ -66,9 +66,9 @@ public:
     Note( Project *project, Settings *settings, const char *filename );
     Note ( Project *p, Settings *settings );
 
-    void print ();
+    void print () const;
 
-    uint32_t get_body_crc ()
+    uint32_t get_body_crc () const
     {
         return this->hash;
     }
@@ -88,11 +88,11 @@ public:
         return this->id;
     }
 
-    const std::string get_project_name ()
+    const std::string get_project_name () const
     {
         return this->project->get_name ();
     }
-    const Project * get_project ()
+    const Project * get_project () const
     {
         return this->project;
     }
@@ -102,7 +102,7 @@ public:
         return this->project->get_relative_name ( p );
     }
 
-    std::string get_modtime ();
+    std::string get_modtime () const;
 
     unsigned long get_revision () const;
 
@@ -134,10 +134,10 @@ public:
 
     bool move ( Project *p );
 
-    bool export_to_file_html ( const std::string file );
-    bool export_to_file_raw ( const std::string file );
+    bool export_to_file_html ( const std::string &file );
+    bool export_to_file_raw ( const std::string &file );
 
-    bool import ( const std::string path );
+    bool import ( const std::string &path );
 
 
     bool search ( const std::regex &match );
@@ -150,8 +150,8 @@ private:
      * This function does nothing more then a copy
      * till end of file.
      */
-    void copy_till_end_of_file ( FILE *fp_edited_in, FILE *fpout );
-    unsigned int calculate_crc ( FILE *fp );
+    static void copy_till_end_of_file ( FILE *fp_edited_in, FILE *fpout );
+    static unsigned int calculate_crc ( FILE *fp );
     void read_title ( FILE *fp );
 };
 

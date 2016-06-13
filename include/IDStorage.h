@@ -57,7 +57,7 @@ public:
      * Returns an ID for a given note path.
      * Creates a new id when not found.
      */
-    unsigned int get_id ( const std::string path );
+    unsigned int get_id ( const std::string &path );
 
     /**
      * @param id The id that is moved.
@@ -65,14 +65,14 @@ public:
      *
      * Move the id to new path.
      */
-    void move_id ( const std::string path_old, const std::string path_new );
+    void move_id ( const std::string &path_old, const std::string &path_new );
 
     /**
      * @param id The id that is released.
      *
      * Release the id back for re-use.
      */
-    void delete_id ( const std::string path_old );
+    void delete_id ( const std::string &path_old );
 
     /**
      * @param notes List of notes.

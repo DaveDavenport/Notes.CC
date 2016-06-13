@@ -81,7 +81,7 @@ public:
 
     void list_projects ();
 
-    unsigned int get_num_notes ()
+    unsigned int get_num_notes () const
     {
         return this->notes.size ();
     }

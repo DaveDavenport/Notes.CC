@@ -61,9 +61,7 @@ public:
 
     void set_color ( const char *color );
 
-    void set_header ( const std::string name );
-
-    void add_entry ( std::string field );
+    void set_header ( const std::string &name );
 
     unsigned int get_width () const;
     void set_width ( unsigned int width );

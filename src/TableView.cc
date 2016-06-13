@@ -41,19 +41,12 @@ TableColumn::TableColumn()
 /**
  * TableColumn
  */
-void TableColumn::add_entry ( std::string field )
-{
-    this->fields.push_back ( field );
-    if ( field.length () > this->width ) {
-        this->width = field.length ();
-    }
-}
 void TableColumn::set_color ( const char *color )
 {
     this->color = color;
 }
 
-void TableColumn::set_header ( const std::string name )
+void TableColumn::set_header ( const std::string &name )
 {
     this->column_name = name;
     if ( column_name.length () > this->width ) {
