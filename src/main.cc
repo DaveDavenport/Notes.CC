@@ -182,6 +182,7 @@ public:
         }
         else if  ( argc >= 2 && strcmp ( argv[1], "sync" ) == 0 ) {
             this->repository_pull ();
+            this->check_sync_required ();
             this->repository_push ();
         }
         else if ( argc >= 2 && strcmp ( argv[1], "pull" ) == 0 ) {
@@ -255,7 +256,7 @@ public:
                                         NULL };
         auto              isdir = exec_command_read_result ( "git", argsc );
         if ( strcasecmp ( isdir.c_str (), "true" ) != 0 ) {
-            notes_print_error ( "Notes directory '%s' is not a valid repository\n", repo_path.c_str() );
+            notes_print_error ( "Notes directory '%s' is not a valid repository\n", repo_path.c_str () );
             if ( initial_setup () ) {
                 notes_print_error ( "Failed to initialize, giving up.\n" );
                 return false;
@@ -265,29 +266,35 @@ public:
         if ( storage == nullptr ) {
             storage = new IDStorage ( settings.get_repository () );
         }
-        const char *const args[] = { "git",
-                                     "-C",       repo_path.c_str (),
-                                     "rev-parse",
-                                     "@{0}",
-                                     NULL };
-        auto              cur     = exec_command_read_result ( "git", args );
-        const char *const args1[] = { "git",
-                                      "-C",       repo_path.c_str (),
-                                      "rev-parse",
-                                      "@{u}",
-                                      NULL };
-        auto              up = exec_command_read_result ( "git", args1 );
+        this->check_sync_required ();
+        this->Load ( );
+        return true;
+    }
+
+private:
+    void check_sync_required ( void )
+    {
+        const std::string &repo_path = this->get_path ();
+        const char *const  args[]    = { "git",
+                                         "-C",       repo_path.c_str (),
+                                         "rev-parse",
+                                         "@{0}",
+                                         NULL };
+        auto               cur     = exec_command_read_result ( "git", args );
+        const char *const  args1[] = { "git",
+                                       "-C",       repo_path.c_str (),
+                                       "rev-parse",
+                                       "@{u}",
+                                       NULL };
+        auto               up = exec_command_read_result ( "git", args1 );
+        this->require_sync = false;
         if ( up.size () == 0 ) {
             // this->has_upstream = false;
         }
         else if ( cur != up ) {
             this->require_sync = true;
         }
-        this->Load ( );
-        return true;
     }
-
-private:
     /**
      * This function is used to sort the notes and assign them an id.
      * Sorting should be stable between runs (when there is no edit of note).
@@ -473,10 +480,14 @@ private:
 
     bool repository_push ()
     {
-        std::string       path   = this->get_path ();
-        const char *const args[] = { "git", "-C", path.c_str (), "push", NULL };
-        int               retv   = exec_command ( "git", args );
-        return retv == 0;
+        if ( this->require_sync ) {
+            std::string       path   = this->get_path ();
+            const char *const args[] = { "git", "-C", path.c_str (), "push", NULL };
+            int               retv   = exec_command ( "git", args );
+            this->require_sync = false;
+            return retv == 0;
+        }
+        return false;
     }
     bool repository_pull ( )
     {
