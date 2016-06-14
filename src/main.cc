@@ -181,6 +181,7 @@ public:
             interactive ();
         }
         else if  ( argc >= 2 && strcmp ( argv[1], "sync" ) == 0 ) {
+            notes_print_info ( "Checking for and pulling changes from remote repository.\n");
             this->repository_pull ();
             this->check_sync_required ();
             this->repository_push ();
@@ -487,6 +488,7 @@ private:
     bool repository_push ()
     {
         if ( this->require_sync ) {
+            notes_print_info ( "Pushing local changes to server.\n" );
             std::string       path   = this->get_path ();
             const char *const args[] = { "git", "-C", path.c_str (), "push", NULL };
             int               retv   = exec_command ( args );
@@ -1180,6 +1182,11 @@ private:
                 this->list_projects ();
             }
             return;
+        }
+        else if ( command == "list" ) {
+            if ( argc == 2 ) {
+                std::cout << "project:" << std::endl;
+            }
         }
     }
 
