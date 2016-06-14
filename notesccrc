@@ -24,5 +24,3 @@ REPOSITORY=/home/qball/Notes2/
 # If not specified xdg-open is used.
 ##
 HTML_VIEWER=w3m
-
-NOPULL=true
