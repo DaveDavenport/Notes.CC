@@ -111,9 +111,8 @@ unsigned int IDStorage::get_id ( const std::string &path )
         id++;
     }
 }
-IDStorage::IDStorage ( const std::string &repo_path ) : cache_path(repo_path+"/.idcache")
+IDStorage::IDStorage ( const std::string &repo_path ) : cache_path ( repo_path + "/.idcache" )
 {
-
     read ();
 }
 IDStorage::~IDStorage ()

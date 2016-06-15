@@ -181,7 +181,7 @@ public:
             interactive ();
         }
         else if  ( argc >= 2 && strcmp ( argv[1], "sync" ) == 0 ) {
-            notes_print_info ( "Checking for and pulling changes from remote repository.\n");
+            notes_print_info ( "Checking for and pulling changes from remote repository.\n" );
             this->repository_pull ();
             this->check_sync_required ();
             this->repository_push ();
@@ -875,6 +875,14 @@ private:
             }
         }
         view.print ();
+        NotesFilter filter ( this->notes );
+        if ( show_archive ) {
+            filter.filter_not_archive ();
+        }
+        else{
+            filter.filter_archive ();
+        }
+        notes_print_info ( "Number notes: %lu\n", filter.get_filtered_notes ().size () );
         notes_print_info ( "Number projects: %lu\n", row );
         return 0;
     }
